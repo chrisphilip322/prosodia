@@ -1,11 +1,24 @@
 #!/usr/bin/env python
 
 import abc
+import functools
 import typing
 
 RuleName = str
 I = typing.TypeVar('I')
 O = typing.TypeVar('O')
+
+A0 = typing.TypeVar('A0')
+A1 = typing.TypeVar('A1')
+
+def methdispatch(func):
+    dispatcher = functools.singledispatch(func)
+    def wrapper(*args, **kw):
+        return dispatcher.dispatch(args[1].__class__)(*args, **kw)
+    wrapper.register = dispatcher.register
+    functools.update_wrapper(wrapper, func)
+    return wrapper
+
 
 class Language(object):
     """Collection of rules"""
@@ -200,7 +213,7 @@ class RuleTransformation(typing.Generic[O]):
 
     def transform(
         self,
-        rule_node: RuleNode,
+        rule_node: 'RuleNode',
         lang: 'LanguageTransformation'
     ) -> O:
         return self.tf_syntax.transform(
@@ -213,49 +226,44 @@ class RuleTransformation(typing.Generic[O]):
 class SyntaxTransformation(typing.Generic[O]):
     def __init__(
         self,
-        tf_term_groups: typing.Sequence[
-            'TermGroupTransformation[typing.Any, O]'
-        ]
+        tf_term_groups: typing.Sequence['TermGroupTransformation[O]']
     ) -> None:
         self.tf_term_groups = tf_term_groups
 
+    @classmethod
+    def create(
+        cls,
+        *tf_term_groups: 'TermGroupTransformation[O]'
+    ) -> 'SyntaxTransformation':
+        return cls(tf_term_groups)
+
     def transform(
         self,
-        values: typing.Sequence[typing.Any],
+        values: typing.Sequence['Node'],
         index: int,
         lang: 'LanguageTransformation'
     ) -> O:
         return self.tf_term_groups[index].transform(values, lang)
 
 
-class TermGroupTransformation(typing.Generic[I, O]):
+class TermGroupTransformation(typing.Generic[O]):
     def __init__(
         self,
-        tf_terms: typing.Sequence['TermTransformation[typing.Any, I]'],
-        accumulator: typing.Callable[[typing.Iterable[I]], O]
+        accumulator: typing.Callable[[typing.Any], O]
     ) -> None:
-        self.tf_terms = tf_terms
         self.accumulator = accumulator
 
     def transform(
         self,
-        values: typing.Sequence[typing.Any],
+        values: typing.Sequence['Node'],
         lang: 'LanguageTransformation'
     ) -> O:
         return self.accumulator(
-            tt.transform(value, lang)
-            for tt, value in zip(self.tf_terms, values)
+            LazySequenceTransform.create(
+                values,
+                lang
+            )
         )
-
-class TermTransformation(typing.Generic[I, O]):
-    def __init__(
-        self,
-        tf_func: typing.Callable[[I], O]
-    ) -> None:
-        self.tf_func = tf_func
-
-    def transform(self, value: 'Node', lang: 'LanguageTransformation') -> O:
-        return self.tf_func(value.transform(lang))
 
 
 class Node(object, metaclass=abc.ABCMeta):
@@ -269,7 +277,7 @@ class RuleNode(Node):
         self,
         matched_rule: RuleName,
         term_group_id: int,
-        children: typing.Sequence[typing.Union[str, 'Node']]
+        children: typing.Sequence['Node']
     ) -> None:
         self.matched_rule = matched_rule
         self.term_group_id = term_group_id
@@ -289,3 +297,49 @@ class LiteralNode(Node):
 
     def transform(self, lang: 'LanguageTransformation') -> str:
         return self.value
+
+@functools.singledispatch
+def _lazy_getitem(_, __):
+    raise NotImplementedError
+
+@_lazy_getitem.register(int)
+def _lazy_getitem_int(i: int, lazys: 'LazySequenceTransform') -> typing.Any:
+    if i not in lazys.cache:
+        lazys.cache[i] = lazys.initial_values[i].transform(lazys.lang)
+    return lazys.cache[i]
+
+@_lazy_getitem.register(slice)
+def _lazy_getitem_slice(
+    s: slice,
+    lazys: 'LazySequenceTransform'
+) -> typing.Sequence:
+    return tuple(
+        lazys[i]
+        for i in range(len(lazys))[s]
+    )
+
+
+class LazySequenceTransform(typing.Sequence):
+    def __init__(
+        self,
+        initial_values: typing.Sequence['Node'],
+        lang: 'LanguageTransformation',
+        cache: typing.Dict[int, O]
+    ) -> None:
+        self.initial_values = initial_values
+        self.lang = lang
+        self.cache = cache
+
+    @classmethod
+    def create(cls, nodes: typing.Sequence['Node'], lang: 'LanguageTransformation') -> 'LazySequenceTransform':
+        return cls(nodes, lang, dict())
+
+    @typing.overload
+    def __getitem__(self, i: int) -> typing.Any: ...
+    @typing.overload
+    def __getitem__(self, s: slice) -> typing.Sequence: ...
+    def __getitem__(self, x):
+        return _lazy_getitem_slice(x, self)
+
+    def __len__(self):
+        return len(self.initial_values)

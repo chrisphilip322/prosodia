@@ -18,3 +18,10 @@ for a function of the form
 possible solution?
 chain of items
 tuple[T, Optional[chain[T]]]
+
+
+
+
+
+allow templated accuumulators, but require they be templated with the type
+they are using for the template

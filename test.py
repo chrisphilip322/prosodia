@@ -25,8 +25,7 @@ def parse_v2():
                     p.RuleReference('Rules'),
                     p.EOFTerm()
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -40,8 +39,7 @@ def parse_v2():
                     p.RuleReference('Rule'),
                     p.RuleReference('Rules')
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -59,8 +57,7 @@ def parse_v2():
                     p.RuleReference('Expression'),
                     p.RuleReference('LineEnd')
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -74,8 +71,7 @@ def parse_v2():
                 p.TermGroup.create(
                     p.Literal('')
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -92,8 +88,7 @@ def parse_v2():
                     p.RuleReference('OptWhitespace'),
                     p.RuleReference('Expression')
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -107,8 +102,7 @@ def parse_v2():
                     p.RuleReference('SingleLineEnd'),
                     p.RuleReference('LineEnd'),
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -119,8 +113,7 @@ def parse_v2():
                     p.RuleReference('OptWhitespace'),
                     p.Literal('\n')
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -135,8 +128,7 @@ def parse_v2():
                     p.RuleReference('OptWhitespace'),
                     p.RuleReference('List')
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -151,8 +143,7 @@ def parse_v2():
                     p.RuleReference('RuleName'),
                     p.Literal('>'),
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -169,8 +160,7 @@ def parse_v2():
                     p.RuleReference('Text2'),
                     p.Literal("'"),
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -184,8 +174,7 @@ def parse_v2():
                     p.RuleReference('Character1'),
                     p.RuleReference('Text1'),
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -199,8 +188,7 @@ def parse_v2():
                     p.RuleReference('Character2'),
                     p.RuleReference('Text2'),
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -216,8 +204,7 @@ def parse_v2():
                 p.TermGroup.create(
                     p.RuleReference('Symbol')
                 ),
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -232,8 +219,7 @@ def parse_v2():
                         (chr(ord('A') + offset) for offset in range(26))
                     )
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -245,8 +231,7 @@ def parse_v2():
                         p.Literal(chr(ord('0') + offset))
                     ) for offset in range(10)
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -258,8 +243,7 @@ def parse_v2():
                         p.Literal(symbol)
                     ) for symbol in r'| !#$%&()*+,-./:;>=<?@[\]^_`{}~'
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -272,8 +256,7 @@ def parse_v2():
                 p.TermGroup.create(
                     p.Literal("'")
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -286,8 +269,7 @@ def parse_v2():
                 p.TermGroup.create(
                     p.Literal('"')
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -301,8 +283,7 @@ def parse_v2():
                     p.RuleReference('Letter'),
                     p.RuleReference('RuleEnd')
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -316,8 +297,7 @@ def parse_v2():
                     p.RuleReference('OneRuleEnd'),
                     p.RuleReference('RuleEnd')
                 )
-            ),
-            dict()
+            )
         )
     )
     lang.add_rule(
@@ -338,8 +318,7 @@ def parse_v2():
                     p.Literal('-'),
                     p.RuleReference('Digit')
                 )
-            ),
-            dict()
+            )
         )
     )
     return lang.parse(bnf)
