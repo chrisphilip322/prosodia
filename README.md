@@ -2,5 +2,4 @@
 Parse Backus-Naur form syntaxs into parsers to generate ASTs of arbitrary syntaxs.
 
 ## TODOs
-add type signatures to the transforms using typing.overload
-to support different size tuples of generics
+Add explicit types to transforms by creating an object that defines the transform, and how to create explicit type signatures from a generic one
