@@ -2,7 +2,11 @@
 
 import abc
 import functools
+import logging
 import typing
+
+logging.basicConfig(level=logging.INFO)
+LOGGER = logging.getLogger('bnf')
 
 RuleName = str
 I = typing.TypeVar('I')
@@ -44,9 +48,29 @@ class Language(object):
         return self.rules[rule_name]
 
     def parse(self, text: str) -> 'Node':
-        root = self.get_rule(self.root_rule)
-        (_, node), = root.match(text, self)
+        matches = self._parse_all(text)
+        node, = matches
         return node
+
+    def _parse_all(self, text: str) -> typing.Iterable['Node']:
+        root = self.get_rule(self.root_rule)
+        matches = root.match(text, self)
+        return (node for _, node in matches)
+
+
+    def __eq__(self, other: 'Language') -> bool:
+        if self.root_rule != other.root_rule:
+            LOGGER.info('Langage: root rule is different')
+            return False
+        elif self.rules.keys() != other.rules.keys():
+            LOGGER.info('Language: set of rule names are different')
+            return False
+        elif self.rules != other.rules:
+            LOGGER.info('Language: rules are different')
+            return False
+        else:
+            return True
+
 
 
 class Rule(object):
@@ -69,18 +93,26 @@ class Rule(object):
     ) -> typing.Iterable[typing.Tuple[str, 'Node']]:
         return self.syntax.match(text, self.name, lang)
 
+    def __eq__(self, other: 'Rule') -> bool:
+        if self.name != other.name:
+            LOGGER.info('Rule: rule names are different')
+        elif self.syntax != other.syntax:
+            LOGGER.info('Rule: syntaxes are different')
+        else:
+            return True
+
 
 class Syntax(object):
     """Collection of Term lists
 
     a syntax matches if one of its term lists matches the plaintext
     """
-    def __init__(self, term_lists: typing.Sequence['TermGroup']) -> None:
-        self.term_lists = term_lists
+    def __init__(self, term_groups: typing.Sequence['TermGroup']) -> None:
+        self.term_groups = term_groups
 
     @classmethod
-    def create(cls, *term_lists: 'TermGroup') -> 'Syntax':
-        return cls(term_lists)
+    def create(cls, *term_groups: 'TermGroup') -> 'Syntax':
+        return cls(term_groups)
 
     def match(
         self,
@@ -88,9 +120,18 @@ class Syntax(object):
         rule_name: 'RuleName',
         lang: 'Language'
     ) -> typing.Iterable[typing.Tuple[str, 'Node']]:
-        for index, term_list in enumerate(self.term_lists):
+        for index, term_list in enumerate(self.term_groups):
             for leftover, terms in term_list.match(text, lang):
-                yield leftover, RuleNode(rule_name, index, terms)
+                node = RuleNode(rule_name, index, terms)
+                yield leftover, node
+
+
+    def __eq__(self, other: 'Syntax') -> bool:
+        if self.term_groups != other.term_groups:
+            LOGGER.info('Syntax: term groups are different')
+            return False
+        else:
+            return True
 
 
 class TermGroup(object):
@@ -129,6 +170,13 @@ class TermGroup(object):
     ) -> typing.Iterable[typing.Tuple[str, typing.Sequence['Node']]]:
         return self._match_impl(text, 0, lang)
 
+    def __eq__(self, other: 'TermGroup') -> bool:
+        if self.terms != other.terms:
+            LOGGER.info('TermGroup: terms are different')
+            return False
+        else:
+            return True
+
 
 class Term(object, metaclass=abc.ABCMeta):
     """Unit of a syntax"""
@@ -153,6 +201,14 @@ class RuleReference(Term):
     ) -> typing.Iterable[typing.Tuple[str, 'Node']]:
         return lang.get_rule(self.rule_name).match(text, lang)
 
+    def __eq__(self, other: 'Term') -> bool:
+        if not isinstance(other, RuleReference):
+            LOGGER.info('RuleReference: other is not rule reference')
+            return False
+        elif self.rule_name != other.rule_name:
+            LOGGER.info('RuleReference: different rule names')
+        else:
+            return True
 
 class Literal(Term):
     """Term that represents a plaintext literal"""
@@ -167,6 +223,16 @@ class Literal(Term):
         if text.startswith(self.text):
             yield text[len(self.text):], LiteralNode(self.text)
 
+    def __eq__(self, other: 'Term') -> bool:
+        if not isinstance(other, Literal):
+            LOGGER.info('Literal: other is not a literal')
+            return False
+        elif self.text != other.text:
+            LOGGER.info('Literal: text is different')
+            return False
+        else:
+            return True
+
 
 class EOFTerm(Term):
     def match(
@@ -176,6 +242,13 @@ class EOFTerm(Term):
     ) -> typing.Iterable[typing.Tuple[str, 'Node']]:
         if text == '':
             yield text, LiteralNode('')
+
+    def __eq__(self, other: 'Term') -> bool:
+        if not isinstance(other, EOFTerm):
+            LOGGER.info('EOFTerm: other is not an EOFTerm')
+            return False
+        else:
+            return True
 
 
 class LanguageTransformation(object):
@@ -200,6 +273,25 @@ class LanguageTransformation(object):
 
     def transform(self, rule_node: 'RuleNode') -> typing.Any:
         return rule_node.transform(self)
+
+    def __ilshift__(
+        self,
+        info: typing.Tuple[
+            RuleName,
+            typing.Sequence[typing.Callable[[typing.Any], O]]
+        ]
+    ) -> 'LanguageTransformation':
+        rule_name, transforms = info
+        rt = RuleTransformation(
+            rule_name,
+            SyntaxTransformation(
+                tuple(
+                    TermGroupTransformation(t) for t in transforms
+                )
+            )
+        )
+        self.add_rule_transformation(rt)
+        return self
 
 
 class RuleTransformation(typing.Generic[O]):
@@ -243,7 +335,12 @@ class SyntaxTransformation(typing.Generic[O]):
         index: int,
         lang: 'LanguageTransformation'
     ) -> O:
-        return self.tf_term_groups[index].transform(values, lang)
+        try:
+            return self.tf_term_groups[index].transform(values, lang)
+        except IndexError:
+            print(index, self.tf_term_groups)
+            for v in values:
+                print(v)
 
 
 class TermGroupTransformation(typing.Generic[O]):
@@ -283,6 +380,8 @@ class RuleNode(Node):
         self.term_group_id = term_group_id
         self.children = children
 
+    def __str__(self):
+        return ''.join(str(c) for c in self.children)
 
     def transform(self, lang: 'LanguageTransformation') -> typing.Any:
         return lang.transformation_rules[self.matched_rule].transform(
@@ -294,6 +393,9 @@ class RuleNode(Node):
 class LiteralNode(Node):
     def __init__(self, value: str) -> None:
         self.value = value
+
+    def __str__(self):
+        return self.value
 
     def transform(self, lang: 'LanguageTransformation') -> str:
         return self.value
@@ -339,7 +441,10 @@ class LazySequenceTransform(typing.Sequence):
     @typing.overload
     def __getitem__(self, s: slice) -> typing.Sequence: ...
     def __getitem__(self, x):
-        return _lazy_getitem_slice(x, self)
+        return _lazy_getitem(x, self)
 
     def __len__(self):
         return len(self.initial_values)
+
+    def __iter__(self):
+        return (self[i] for i in range(len(self)))
