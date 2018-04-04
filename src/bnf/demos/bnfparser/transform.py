@@ -1,9 +1,8 @@
-#!/usr/bin/env python
 import typing
 
-import parser_v2 as p
-from validate_transform_types import TypeAdder
-from parse_bnf import ALLOWED_SYMBOLS
+import bnf.core.grammar as p
+from bnf.validation.transform_validation import TypeAdder
+from .parser import ALLOWED_SYMBOLS
 
 S = typing.TypeVar('S')
 T = typing.TypeVar('T')
