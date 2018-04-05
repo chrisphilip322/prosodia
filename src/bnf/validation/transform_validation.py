@@ -65,34 +65,4 @@ class TypedFunc(typing.Generic[S, T]):
             else get_input_type(output)
         )
         input_type = typing.Tuple[tuple(input_types)]
-        print(input_type)
-        print(output_type)
         return input_type == output_type
-
-
-# @TypeAdder
-# def list_of(
-#     values: typing.Tuple[T]
-# ) -> typing.List[T]:
-#     return [values[0]]
-
-
-# @TypeAdder
-# def push_list(
-#     values: typing.Tuple[T, typing.List[T]]
-# ) -> typing.List[T]:
-#     return [values[0]] + values[1]
-
-
-# def five() -> int:
-#     return 5
-
-# def word() -> str:
-#     return "word"
-
-# print(
-#     TypedFunc.validate(
-#         (five, list_of[[int], typing.Sequence[int]]),
-#         push_list[[int, typing.Sequence[int]], typing.Sequence[int]]
-#     )
-# )

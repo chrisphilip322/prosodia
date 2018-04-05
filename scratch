@@ -1,5 +1,0 @@
-foobar
-
-root ::= fizz buzz | ring rang
-fizz ::= 'foo'
-buzz ::= 'bar'

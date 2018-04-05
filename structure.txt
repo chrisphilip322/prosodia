@@ -1,1 +1,0 @@
-TermType -> SyntaxTerm -> ASTNode

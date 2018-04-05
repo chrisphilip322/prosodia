@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import abc
 import functools
 import logging
@@ -96,8 +94,10 @@ class Rule(object):
     def __eq__(self, other: 'Rule') -> bool:
         if self.name != other.name:
             LOGGER.info('Rule: rule names are different')
+            return False
         elif self.syntax != other.syntax:
             LOGGER.info('Rule: syntaxes are different')
+            return False
         else:
             return True
 
@@ -207,6 +207,7 @@ class RuleReference(Term):
             return False
         elif self.rule_name != other.rule_name:
             LOGGER.info('RuleReference: different rule names')
+            return False
         else:
             return True
 
@@ -426,21 +427,28 @@ class LazySequenceTransform(typing.Sequence):
         self,
         initial_values: typing.Sequence['Node'],
         lang: 'LanguageTransformation',
-        cache: typing.Dict[int, O]
+        cache: typing.Dict[int, typing.Any]
     ) -> None:
+        super().__init__()
         self.initial_values = initial_values
         self.lang = lang
         self.cache = cache
 
     @classmethod
-    def create(cls, nodes: typing.Sequence['Node'], lang: 'LanguageTransformation') -> 'LazySequenceTransform':
+    def create(
+        cls,
+        nodes: typing.Sequence['Node'],
+        lang: 'LanguageTransformation'
+    ) -> 'LazySequenceTransform':
         return cls(nodes, lang, dict())
 
     @typing.overload
-    def __getitem__(self, i: int) -> typing.Any: ...
+    def __getitem__(self, i: int) -> typing.Any:
+        pass
     @typing.overload
-    def __getitem__(self, s: slice) -> typing.Sequence: ...
-    def __getitem__(self, x):
+    def __getitem__(self, s: slice) -> typing.Sequence: # pylint: disable=function-redefined
+        pass
+    def __getitem__(self, x): # pylint: disable=function-redefined
         return _lazy_getitem(x, self)
 
     def __len__(self):
