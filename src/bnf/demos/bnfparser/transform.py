@@ -1,30 +1,31 @@
 import typing
 
-import bnf.core.grammar as p
-from bnf.validation.transform_validation import TypeAdder
+from ...core import grammar as g, transform as t
+from ...validation.transform_validation import TypeAdder
 from .parser import ALLOWED_SYMBOLS
 
 S = typing.TypeVar('S')
 T = typing.TypeVar('T')
+Addable = typing.TypeVar('Addable', str, list)
 
 def syntax_accum(
-    values: typing.Tuple[typing.Sequence[p.Rule], None]
-) -> p.Language:
+    values: typing.Tuple[typing.Sequence[g.Rule], None]
+) -> g.Language:
     rules = values[0]
-    lang = p.Language.create(rules[0].name)
-    eol_rule = p.Rule(
+    lang = g.Language.create(rules[0].name)
+    eol_rule = g.Rule(
         'EOL',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.Literal('\n')
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.Literal('\n')
             )
         )
     )
-    eof_rule = p.Rule(
+    eof_rule = g.Rule(
         'EOF',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.EOFTerm()
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.EOFTerm()
             )
         )
     )
@@ -38,52 +39,52 @@ def rule_accum(
     values: typing.Tuple[
         None,
         str,
-        p.RuleName,
+        g.RuleName,
         str,
         None,
         str,
         None,
-        typing.Sequence[p.TermGroup],
+        typing.Sequence[g.TermGroup],
         None
     ]
-) -> p.Rule:
-    return p.Rule(values[2], p.Syntax(values[7]))
+) -> g.Rule:
+    return g.Rule(values[2], g.Syntax(values[7]))
 
 def expression_accum(
     values: typing.Tuple[
-        p.TermGroup,
+        g.TermGroup,
         None,
         str,
         None,
-        typing.Sequence[p.TermGroup]
+        typing.List[g.TermGroup]
     ]
-) -> typing.Sequence[p.TermGroup]:
+) -> typing.List[g.TermGroup]:
     return [values[0]] + values[4]
 
 def list_accum_1(
-    values: typing.Tuple[p.Term]
-) -> p.TermGroup:
-    return p.TermGroup(list(values))
+    values: typing.Tuple[g.Term]
+) -> g.TermGroup:
+    return g.TermGroup(list(values))
 
 def list_accum_2(
-    values: typing.Tuple[p.Term, None, p.TermGroup]
-) -> p.TermGroup:
-    return p.TermGroup([values[0]] + values[2].terms)
+    values: typing.Tuple[g.Term, None, g.TermGroup]
+) -> g.TermGroup:
+    return g.TermGroup([values[0]] + list(values[2].terms))
 
 def text_accum_1(
     values: typing.Tuple[str]
-) -> p.Literal:
-    return p.Literal(values[0])
+) -> g.Literal:
+    return g.Literal(values[0])
 
 def text_accum_2(
-    values: typing.Tuple[str, p.Literal]
-) -> p.Literal:
-    return p.Literal(values[0] + values[1].text)
+    values: typing.Tuple[str, g.Literal]
+) -> g.Literal:
+    return g.Literal(values[0] + values[1].text)
 
 def term_accum_rule(
-    values: typing.Tuple[str, p.RuleName, str]
-) -> p.RuleReference:
-    return p.RuleReference(values[1])
+    values: typing.Tuple[str, g.RuleName, str]
+) -> g.RuleReference:
+    return g.RuleReference(values[1])
 
 @TypeAdder
 def list_of(
@@ -113,8 +114,8 @@ def unescape(
 
 @TypeAdder
 def add(
-    values: typing.Tuple[T, ...]
-) -> T:
+    values: typing.Tuple[Addable, ...]
+) -> Addable:
     iterable = iter(values)
     accum = next(iterable)
     for item in iterable:
@@ -122,11 +123,11 @@ def add(
     return accum
 
 
-lt = p.LanguageTransformation.create()
+lt = t.LanguageTransformation.create()
 lt <<= 'Syntax', [syntax_accum]
 lt <<= 'Rules', [
-    list_of[[p.Rule], typing.Sequence[p.Rule]],
-    push_list[[p.Rule, typing.Sequence[p.Rule]], typing.Sequence[p.Rule]]
+    list_of[[g.Rule], typing.Sequence[g.Rule]],
+    push_list[[g.Rule, typing.Sequence[g.Rule]], typing.Sequence[g.Rule]]
 ]
 lt <<= 'Rule', [rule_accum]
 lt <<= 'OptWhitespace', [
@@ -134,7 +135,7 @@ lt <<= 'OptWhitespace', [
     nothing[[str], None]
 ]
 lt <<= 'Expression', [
-    list_of[[p.TermGroup], typing.Sequence[p.TermGroup]],
+    list_of[[g.TermGroup], typing.Sequence[g.TermGroup]],
     expression_accum
 ]
 lt <<= 'LineEnd', [
@@ -149,12 +150,12 @@ lt <<= 'List', [
     list_accum_2
 ]
 lt <<= 'Term', [
-    identity[[p.Literal], p.Literal],
+    identity[[g.Literal], g.Literal],
     term_accum_rule
 ]
 lt <<= 'Literal', [
-    unescape[[str, p.Literal, str], p.Literal],
-    unescape[[str, p.Literal, str], p.Literal],
+    unescape[[str, g.Literal, str], g.Literal],
+    unescape[[str, g.Literal, str], g.Literal],
 ]
 lt <<= 'Text1', [
     text_accum_1,
