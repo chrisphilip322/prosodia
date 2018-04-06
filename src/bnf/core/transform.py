@@ -3,7 +3,7 @@ import typing
 
 from .grammar import RuleName, Literal, RuleReference
 from . import grammar as g
-from .tree import Node, RuleNode
+from .tree import Node, RuleNode, LiteralNode
 from ..validation.transform_validation import Validity, TypedFunc
 
 I = typing.TypeVar('I')
@@ -67,7 +67,7 @@ class LanguageTransformation(object):
 
     def get_transform_of_term(self, term: g.Term) -> typing.Callable:
         if isinstance(term, Literal):
-            return str
+            return LiteralNode.transform
         elif isinstance(term, RuleReference):
             return (
                 self.transformation_rules[term.rule_name]
@@ -107,7 +107,13 @@ class RuleTransformation(typing.Generic[O]):
                 'rule transform is named differently than the rule'
             )
         else:
-            return self.tf_syntax.validate(rule.syntax, lt)
+            validity = self.tf_syntax.validate(rule.syntax, lt)
+            if not validity:
+                return validity + Validity.invalid(
+                    '{0} rule is not valid'.format(repr(self.rule_name))
+                )
+            else:
+                return Validity.valid()
 
 
 class SyntaxTransformation(typing.Generic[O]):
@@ -188,7 +194,8 @@ class TermGroupTransformation(typing.Generic[O]):
         ]
         if not TypedFunc.assert_composable(transforms, self.accumulator):
             return Validity.invalid(
-                'rule references in the term group are not composable'
+                'rule references in the term group are not composable',
+                ' '.join(t.rule_name if isinstance(t, RuleReference) else repr(t.text) for t in term_group.terms)
             )
         else:
             return Validity.valid()

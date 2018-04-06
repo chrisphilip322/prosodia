@@ -22,7 +22,7 @@ class Validity(object):
         return cls([msg]+list(msgs))
 
     def __bool__(self) -> bool:
-        return bool(self.messages)
+        return not bool(self.messages)
 
     def __add__(self, other: typing.Any) -> 'Validity':
         if not isinstance(other, type(self)):
