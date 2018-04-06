@@ -21,6 +21,12 @@ class Validity(object):
     def invalid(cls, msg: str, *msgs: str):
         return cls([msg]+list(msgs))
 
+    def __str__(self):
+        if self:
+            return 'Validity.Valid'
+        else:
+            return 'Validity.Invalid<{0}>'.format(len(self.messages))
+
     def __bool__(self) -> bool:
         return not bool(self.messages)
 

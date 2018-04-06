@@ -1,10 +1,8 @@
+from .text import bnf as bnf_plaintext
 from .parser import lang
 from .transform import lt
 
 def run():
-    with open('bnf.bnf') as f:
-        bnf_plaintext = f.read()
-
     tree = lang.parse(bnf_plaintext)
     result = lt.transform(tree)
 

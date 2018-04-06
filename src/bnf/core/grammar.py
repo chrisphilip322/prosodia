@@ -1,11 +1,8 @@
 import abc
-import logging
 import typing
 
 from .tree import Node, LiteralNode, RuleNode
-
-logging.basicConfig(level=logging.INFO)
-LOGGER = logging.getLogger('bnf')
+from ..validation.transform_validation import Validity
 
 RuleName = str
 
@@ -46,20 +43,29 @@ class Language(object):
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, type(self)):
-            LOGGER.info('%s: other is different type', type(self).__name__)
-            return False
+            return Validity.invalid(
+                '%s: other is different type', type(self).__name__
+            )
         elif self.root_rule != other.root_rule:
-            LOGGER.info('Langage: root rule is different')
-            return False
+            return Validity.invalid('Langage: root rule is different')
         elif self.rules.keys() != other.rules.keys():
-            LOGGER.info('Language: set of rule names are different')
-            return False
+            return Validity.invalid('Language: set of rule names are different')
         elif self.rules != other.rules:
-            LOGGER.info('Language: rules are different')
-            return False
+            return Validity.invalid('Language: rules are different')
         else:
-            return True
+            return Validity.valid()
 
+    def validate(self) -> Validity:
+        if self.root_rule not in self.rules:
+            return Validity.invalid('root rule is not present in language')
+        else:
+            return sum(
+                (
+                    rule.validate(self)
+                    for rule in self.rules.values()
+                ),
+                Validity.valid()
+            )
 
 
 class Rule(object):
@@ -84,16 +90,18 @@ class Rule(object):
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, type(self)):
-            LOGGER.info('%s: other is different type', type(self).__name__)
-            return False
+            return Validity.invalid(
+                '%s: other is different type', type(self).__name__
+            )
         elif self.name != other.name:
-            LOGGER.info('Rule: rule names are different')
-            return False
+            return Validity.invalid('Rule: rule names are different')
         elif self.syntax != other.syntax:
-            LOGGER.info('Rule: syntaxes are different')
-            return False
+            return Validity.invalid('Rule: syntaxes are different')
         else:
-            return True
+            return Validity.valid()
+
+    def validate(self, lang: 'Language') -> Validity:
+        return self.syntax.validate(self.name, lang)
 
 
 class Syntax(object):
@@ -122,13 +130,28 @@ class Syntax(object):
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, type(self)):
-            LOGGER.info('%s: other is different type', type(self).__name__)
-            return False
+            return Validity.invalid(
+                '%s: other is different type', type(self).__name__
+            )
         elif tuple(self.term_groups) != tuple(other.term_groups):
-            LOGGER.info('Syntax: term groups are different')
-            return False
+            return Validity.invalid('Syntax: term groups are different')
         else:
-            return True
+            return Validity.valid()
+
+    def validate(self, rule_name: RuleName, lang: 'Language') -> Validity:
+        dupes = tuple(
+            (i, j, x)
+            for i, x in enumerate(self.term_groups)
+            for j, y in enumerate(self.term_groups)
+            if i != j and x == y
+        )
+        if dupes:
+            return Validity.invalid('syntax has duplicate term groups')
+        else:
+            return sum(
+                (tg.validate(rule_name, lang) for tg in self.term_groups),
+                Validity.valid()
+            )
 
 
 class TermGroup(object):
@@ -169,13 +192,33 @@ class TermGroup(object):
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, type(self)):
-            LOGGER.info('%s: other is different type', type(self).__name__)
-            return False
+            return Validity.invalid(
+                '%s: other is different type', type(self).__name__
+            )
         elif tuple(self.terms) != tuple(other.terms):
-            LOGGER.info('TermGroup: terms are different')
-            return False
+            return Validity.invalid('TermGroup: terms are different')
         else:
-            return True
+            return Validity.valid()
+
+    def validate(self, rule_name: RuleName, lang: 'Language') -> Validity:
+        if not self.terms:
+            return Validity.invalid(
+                'term group needs at least one term'
+            )
+        elif len(self.terms) > 1 and any(t == Literal('') for t in self.terms):
+            return Validity.invalid(
+                'shouldnt have an empty literal in a term group with more than '
+                'one term'
+            )
+        elif self.terms[0] == RuleReference(rule_name):
+            return Validity.invalid(
+                'term group cannot start with its own rule'
+            )
+        else:
+            return sum(
+                (t.validate(lang) for t in self.terms),
+                Validity.valid()
+            )
 
 
 class Term(object, metaclass=abc.ABCMeta):
@@ -187,6 +230,9 @@ class Term(object, metaclass=abc.ABCMeta):
         lang: 'Language'
     ) -> typing.Iterable[typing.Tuple[str, Node]]:
         raise NotImplementedError
+
+    def validate(self, _: 'Language') -> Validity:  # pylint: disable=no-self-use
+        return Validity.valid()
 
 
 class RuleReference(Term):
@@ -203,16 +249,25 @@ class RuleReference(Term):
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, type(self)):
-            LOGGER.info('%s: other is different type', type(self).__name__)
-            return False
+            return Validity.invalid(
+                '%s: other is different type', type(self).__name__
+            )
         elif not isinstance(other, RuleReference):
-            LOGGER.info('RuleReference: other is not rule reference')
-            return False
+            return Validity.invalid(
+                'RuleReference: other is not rule reference'
+            )
         elif self.rule_name != other.rule_name:
-            LOGGER.info('RuleReference: different rule names')
-            return False
+            return Validity.invalid('RuleReference: different rule names')
         else:
-            return True
+            return Validity.valid()
+
+    def validate(self, lang: 'Language') -> Validity:
+        if self.rule_name not in lang.rules:
+            return Validity.invalid(
+                'rule reference points to a rule that does not exist'
+            )
+        else:
+            return Validity.valid()
 
 class Literal(Term):
     """Term that represents a plaintext literal"""
@@ -229,16 +284,15 @@ class Literal(Term):
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, type(self)):
-            LOGGER.info('%s: other is different type', type(self).__name__)
-            return False
+            return Validity.invalid(
+                '%s: other is different type', type(self).__name__
+            )
         elif not isinstance(other, Literal):
-            LOGGER.info('Literal: other is not a literal')
-            return False
+            return Validity.invalid('Literal: other is not a literal')
         elif self.text != other.text:
-            LOGGER.info('Literal: text is different')
-            return False
+            return Validity.invalid('Literal: text is different')
         else:
-            return True
+            return Validity.valid()
 
 
 class EOFTerm(Literal):
@@ -255,10 +309,10 @@ class EOFTerm(Literal):
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, type(self)):
-            LOGGER.info('%s: other is different type', type(self).__name__)
-            return False
+            return Validity.invalid(
+                '%s: other is different type', type(self).__name__
+            )
         elif not isinstance(other, EOFTerm):
-            LOGGER.info('EOFTerm: other is not an EOFTerm')
-            return False
+            return Validity.invalid('EOFTerm: other is not an EOFTerm')
         else:
-            return True
+            return Validity.valid()
