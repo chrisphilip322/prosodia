@@ -199,3 +199,9 @@ lt <<= 'OneRuleEnd', [
     add[[str, str], str],
     add[[str, str], str]
 ]
+lt <<= 'EOL', [
+    nothing[[str], None]
+]
+lt <<= 'EOF', [
+    nothing[[str], None]
+]

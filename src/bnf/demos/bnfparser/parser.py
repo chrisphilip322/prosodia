@@ -11,7 +11,7 @@ lang.add_rule(
         g.Syntax.create(
             g.TermGroup.create(
                 g.RuleReference('Rules'),
-                g.EOFTerm()
+                g.RuleReference('EOF')
             )
         )
     )
@@ -99,7 +99,7 @@ lang.add_rule(
         g.Syntax.create(
             g.TermGroup.create(
                 g.RuleReference('OptWhitespace'),
-                g.Literal('\n')
+                g.RuleReference('EOL')
             )
         )
     )
@@ -305,6 +305,26 @@ lang.add_rule(
             g.TermGroup.create(
                 g.Literal('-'),
                 g.RuleReference('Digit')
+            )
+        )
+    )
+)
+lang.add_rule(
+    g.Rule(
+        'EOL',
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.Literal('\n')
+            )
+        )
+    )
+)
+lang.add_rule(
+    g.Rule(
+        'EOF',
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.EOFTerm()
             )
         )
     )

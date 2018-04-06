@@ -1,5 +1,4 @@
 import abc
-import functools
 import logging
 import typing
 
@@ -9,14 +8,6 @@ logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger('bnf')
 
 RuleName = str
-
-def methdispatch(func):
-    dispatcher = functools.singledispatch(func)
-    def wrapper(*args, **kw):
-        return dispatcher.dispatch(args[1].__class__)(*args, **kw)
-    wrapper.register = dispatcher.register
-    functools.update_wrapper(wrapper, func)
-    return wrapper
 
 
 class Language(object):
@@ -54,7 +45,7 @@ class Language(object):
 
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, type(self)):
+        if not isinstance(other, type(self)):
             LOGGER.info('%s: other is different type', type(self).__name__)
             return False
         elif self.root_rule != other.root_rule:
@@ -92,7 +83,7 @@ class Rule(object):
         return self.syntax.match(text, self.name, lang)
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, type(self)):
+        if not isinstance(other, type(self)):
             LOGGER.info('%s: other is different type', type(self).__name__)
             return False
         elif self.name != other.name:
@@ -130,10 +121,10 @@ class Syntax(object):
 
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, type(self)):
+        if not isinstance(other, type(self)):
             LOGGER.info('%s: other is different type', type(self).__name__)
             return False
-        elif self.term_groups != other.term_groups:
+        elif tuple(self.term_groups) != tuple(other.term_groups):
             LOGGER.info('Syntax: term groups are different')
             return False
         else:
@@ -177,10 +168,10 @@ class TermGroup(object):
         return self._match_impl(text, 0, lang)
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, type(self)):
+        if not isinstance(other, type(self)):
             LOGGER.info('%s: other is different type', type(self).__name__)
             return False
-        elif self.terms != other.terms:
+        elif tuple(self.terms) != tuple(other.terms):
             LOGGER.info('TermGroup: terms are different')
             return False
         else:
@@ -211,7 +202,7 @@ class RuleReference(Term):
         return lang.get_rule(self.rule_name).match(text, lang)
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, type(self)):
+        if not isinstance(other, type(self)):
             LOGGER.info('%s: other is different type', type(self).__name__)
             return False
         elif not isinstance(other, RuleReference):
@@ -237,7 +228,7 @@ class Literal(Term):
             yield text[len(self.text):], LiteralNode(self.text)
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, type(self)):
+        if not isinstance(other, type(self)):
             LOGGER.info('%s: other is different type', type(self).__name__)
             return False
         elif not isinstance(other, Literal):
@@ -250,7 +241,10 @@ class Literal(Term):
             return True
 
 
-class EOFTerm(Term):
+class EOFTerm(Literal):
+    def __init__(self):
+        super().__init__('')
+
     def match(
         self,
         text: str,
@@ -260,7 +254,7 @@ class EOFTerm(Term):
             yield text, LiteralNode('')
 
     def __eq__(self, other) -> bool:
-        if isinstance(other, type(self)):
+        if not isinstance(other, type(self)):
             LOGGER.info('%s: other is different type', type(self).__name__)
             return False
         elif not isinstance(other, EOFTerm):

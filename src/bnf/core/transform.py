@@ -1,8 +1,10 @@
 import functools
 import typing
 
-from .grammar import RuleName
+from .grammar import RuleName, Literal, RuleReference
+from . import grammar as g
 from .tree import Node, RuleNode
+from ..validation.transform_validation import Validity, TypedFunc
 
 I = typing.TypeVar('I')
 O = typing.TypeVar('O')
@@ -49,6 +51,31 @@ class LanguageTransformation(object):
         self.add_rule_transformation(rt)
         return self
 
+    def validate(self, lang: g.Language) -> Validity:
+        if self.transformation_rules.keys() != lang.rules.keys():
+            return Validity.invalid(
+                'lang does not have the same set of rule names'
+            )
+        else:
+            return sum(
+                (
+                    rule_t.validate(lang.rules[k], self)
+                    for k, rule_t in self.transformation_rules.items()
+                ),
+                Validity.valid()
+            )
+
+    def get_transform_of_term(self, term: g.Term) -> typing.Callable:
+        if isinstance(term, Literal):
+            return str
+        elif isinstance(term, RuleReference):
+            return (
+                self.transformation_rules[term.rule_name]
+                    .tf_syntax.tf_term_groups[0].accumulator
+            )
+        else:
+            raise ValueError
+
 
 class RuleTransformation(typing.Generic[O]):
     def __init__(
@@ -69,6 +96,18 @@ class RuleTransformation(typing.Generic[O]):
             rule_node.term_group_id,
             lang
         )
+
+    def validate(
+        self,
+        rule: g.Rule,
+        lt: 'LanguageTransformation'
+    ) -> Validity:
+        if self.rule_name != rule.name:
+            return Validity.invalid(
+                'rule transform is named differently than the rule'
+            )
+        else:
+            return self.tf_syntax.validate(rule.syntax, lt)
 
 
 class SyntaxTransformation(typing.Generic[O]):
@@ -93,6 +132,31 @@ class SyntaxTransformation(typing.Generic[O]):
     ) -> O:
         return self.tf_term_groups[index].transform(values, lang)
 
+    def validate(
+        self,
+        syntax: g.Syntax,
+        lt: 'LanguageTransformation'
+    ) -> Validity:
+        if len(self.tf_term_groups) != len(syntax.term_groups):
+            return Validity.invalid(
+                'the syntax has a different number of term groups than the'
+                'transformation'
+            )
+        elif not TypedFunc.assert_substitutable(
+            tgt.accumulator for tgt in self.tf_term_groups
+        ):
+            return Validity.invalid(
+                'not all term group transformations return the same type'
+            )
+        else:
+            return sum(
+                (
+                    tgt.validate(tg, lt)
+                    for tgt, tg in zip(self.tf_term_groups, syntax.term_groups)
+                ),
+                Validity.valid()
+            )
+
 
 class TermGroupTransformation(typing.Generic[O]):
     def __init__(
@@ -112,6 +176,22 @@ class TermGroupTransformation(typing.Generic[O]):
                 lang
             )
         )
+
+    def validate(
+        self,
+        term_group: g.TermGroup,
+        lt: 'LanguageTransformation'
+    ) -> Validity:
+        transforms = [
+            lt.get_transform_of_term(term)
+            for term in term_group.terms
+        ]
+        if not TypedFunc.assert_composable(transforms, self.accumulator):
+            return Validity.invalid(
+                'rule references in the term group are not composable'
+            )
+        else:
+            return Validity.valid()
 
 
 @functools.singledispatch

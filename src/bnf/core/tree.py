@@ -2,9 +2,9 @@ import abc
 import typing
 
 if typing.TYPE_CHECKING:
-    from .grammar import RuleName
-    from .transform import LanguageTransformation
+    from .transform import LanguageTransformation  # pylint: disable=unused-import
 
+RuleName = str
 
 class Node(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
@@ -15,7 +15,7 @@ class Node(object, metaclass=abc.ABCMeta):
 class RuleNode(Node):
     def __init__(
         self,
-        matched_rule: 'RuleName',
+        matched_rule: RuleName,
         term_group_id: int,
         children: typing.Sequence[Node]
     ) -> None:
