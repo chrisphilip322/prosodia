@@ -1,207 +1,207 @@
 from itertools import chain
 
-import bnf.core.grammar as p
+from ...core import grammar as g
 
 ALLOWED_SYMBOLS = r'| !#$%&()*+,-./:;>=<?@[\]^_`{}~'
 
-lang = p.Language.create('Syntax')
+lang = g.Language.create('Syntax')
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'Syntax',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.RuleReference('Rules'),
-                p.EOFTerm()
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.RuleReference('Rules'),
+                g.RuleReference('EOF')
             )
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'Rules',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.RuleReference('Rule')
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.RuleReference('Rule')
             ),
-            p.TermGroup.create(
-                p.RuleReference('Rule'),
-                p.RuleReference('Rules')
+            g.TermGroup.create(
+                g.RuleReference('Rule'),
+                g.RuleReference('Rules')
             )
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'Rule',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.RuleReference('OptWhitespace'),
-                p.Literal('<'),
-                p.RuleReference('RuleName'),
-                p.Literal('>'),
-                p.RuleReference('OptWhitespace'),
-                p.Literal('::='),
-                p.RuleReference('OptWhitespace'),
-                p.RuleReference('Expression'),
-                p.RuleReference('LineEnd')
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.RuleReference('OptWhitespace'),
+                g.Literal('<'),
+                g.RuleReference('RuleName'),
+                g.Literal('>'),
+                g.RuleReference('OptWhitespace'),
+                g.Literal('::='),
+                g.RuleReference('OptWhitespace'),
+                g.RuleReference('Expression'),
+                g.RuleReference('LineEnd')
             )
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'OptWhitespace',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.Literal(' '),
-                p.RuleReference('OptWhitespace')
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.Literal(' '),
+                g.RuleReference('OptWhitespace')
             ),
-            p.TermGroup.create(
-                p.Literal('')
+            g.TermGroup.create(
+                g.Literal('')
             )
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'Expression',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.RuleReference('List')
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.RuleReference('List')
             ),
-            p.TermGroup.create(
-                p.RuleReference('List'),
-                p.RuleReference('OptWhitespace'),
-                p.Literal('|'),
-                p.RuleReference('OptWhitespace'),
-                p.RuleReference('Expression')
+            g.TermGroup.create(
+                g.RuleReference('List'),
+                g.RuleReference('OptWhitespace'),
+                g.Literal('|'),
+                g.RuleReference('OptWhitespace'),
+                g.RuleReference('Expression')
             )
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'LineEnd',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.RuleReference('SingleLineEnd'),
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.RuleReference('SingleLineEnd'),
             ),
-            p.TermGroup.create(
-                p.RuleReference('SingleLineEnd'),
-                p.RuleReference('LineEnd'),
+            g.TermGroup.create(
+                g.RuleReference('SingleLineEnd'),
+                g.RuleReference('LineEnd'),
             )
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'SingleLineEnd',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.RuleReference('OptWhitespace'),
-                p.Literal('\n')
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.RuleReference('OptWhitespace'),
+                g.RuleReference('EOL')
             )
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'List',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.RuleReference('Term')
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.RuleReference('Term')
             ),
-            p.TermGroup.create(
-                p.RuleReference('Term'),
-                p.RuleReference('OptWhitespace'),
-                p.RuleReference('List')
+            g.TermGroup.create(
+                g.RuleReference('Term'),
+                g.RuleReference('OptWhitespace'),
+                g.RuleReference('List')
             )
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'Term',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.RuleReference('Literal')
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.RuleReference('Literal')
             ),
-            p.TermGroup.create(
-                p.Literal('<'),
-                p.RuleReference('RuleName'),
-                p.Literal('>'),
+            g.TermGroup.create(
+                g.Literal('<'),
+                g.RuleReference('RuleName'),
+                g.Literal('>'),
             )
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'Literal',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.Literal('"'),
-                p.RuleReference('Text1'),
-                p.Literal('"'),
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.Literal('"'),
+                g.RuleReference('Text1'),
+                g.Literal('"'),
             ),
-            p.TermGroup.create(
-                p.Literal("'"),
-                p.RuleReference('Text2'),
-                p.Literal("'"),
+            g.TermGroup.create(
+                g.Literal("'"),
+                g.RuleReference('Text2'),
+                g.Literal("'"),
             )
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'Text1',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.Literal('')
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.Literal('')
             ),
-            p.TermGroup.create(
-                p.RuleReference('Character1'),
-                p.RuleReference('Text1'),
+            g.TermGroup.create(
+                g.RuleReference('Character1'),
+                g.RuleReference('Text1'),
             )
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'Text2',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.Literal('')
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.Literal('')
             ),
-            p.TermGroup.create(
-                p.RuleReference('Character2'),
-                p.RuleReference('Text2'),
+            g.TermGroup.create(
+                g.RuleReference('Character2'),
+                g.RuleReference('Text2'),
             )
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'Character',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.RuleReference('Letter')
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.RuleReference('Letter')
             ),
-            p.TermGroup.create(
-                p.RuleReference('Digit')
+            g.TermGroup.create(
+                g.RuleReference('Digit')
             ),
-            p.TermGroup.create(
-                p.RuleReference('Symbol')
+            g.TermGroup.create(
+                g.RuleReference('Symbol')
             ),
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'Letter',
-        p.Syntax.create(
+        g.Syntax.create(
             *(
-                p.TermGroup.create(
-                    p.Literal(letter)
+                g.TermGroup.create(
+                    g.Literal(letter)
                 ) for letter in chain(
                     (chr(ord('A') + offset) for offset in range(26)),
                     (chr(ord('a') + offset) for offset in range(26))
@@ -211,100 +211,120 @@ lang.add_rule(
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'Digit',
-        p.Syntax.create(
+        g.Syntax.create(
             *(
-                p.TermGroup.create(
-                    p.Literal(chr(ord('0') + offset))
+                g.TermGroup.create(
+                    g.Literal(chr(ord('0') + offset))
                 ) for offset in range(10)
             )
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'Symbol',
-        p.Syntax.create(
+        g.Syntax.create(
             *(
-                p.TermGroup.create(
-                    p.Literal(symbol)
+                g.TermGroup.create(
+                    g.Literal(symbol)
                 ) for symbol in ALLOWED_SYMBOLS
             )
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'Character1',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.RuleReference('Character')
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.RuleReference('Character')
             ),
-            p.TermGroup.create(
-                p.Literal("'")
+            g.TermGroup.create(
+                g.Literal("'")
             )
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'Character2',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.RuleReference('Character')
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.RuleReference('Character')
             ),
-            p.TermGroup.create(
-                p.Literal('"')
+            g.TermGroup.create(
+                g.Literal('"')
             )
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'RuleName',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.RuleReference('Letter')
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.RuleReference('Letter')
             ),
-            p.TermGroup.create(
-                p.RuleReference('Letter'),
-                p.RuleReference('RuleEnd')
+            g.TermGroup.create(
+                g.RuleReference('Letter'),
+                g.RuleReference('RuleEnd')
             )
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'RuleEnd',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.RuleReference('OneRuleEnd')
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.RuleReference('OneRuleEnd')
             ),
-            p.TermGroup.create(
-                p.RuleReference('OneRuleEnd'),
-                p.RuleReference('RuleEnd')
+            g.TermGroup.create(
+                g.RuleReference('OneRuleEnd'),
+                g.RuleReference('RuleEnd')
             )
         )
     )
 )
 lang.add_rule(
-    p.Rule(
+    g.Rule(
         'OneRuleEnd',
-        p.Syntax.create(
-            p.TermGroup.create(
-                p.RuleReference('Letter')
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.RuleReference('Letter')
             ),
-            p.TermGroup.create(
-                p.RuleReference('Digit')
+            g.TermGroup.create(
+                g.RuleReference('Digit')
             ),
-            p.TermGroup.create(
-                p.Literal('-'),
-                p.RuleReference('Letter')
+            g.TermGroup.create(
+                g.Literal('-'),
+                g.RuleReference('Letter')
             ),
-            p.TermGroup.create(
-                p.Literal('-'),
-                p.RuleReference('Digit')
+            g.TermGroup.create(
+                g.Literal('-'),
+                g.RuleReference('Digit')
+            )
+        )
+    )
+)
+lang.add_rule(
+    g.Rule(
+        'EOL',
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.Literal('\n')
+            )
+        )
+    )
+)
+lang.add_rule(
+    g.Rule(
+        'EOF',
+        g.Syntax.create(
+            g.TermGroup.create(
+                g.EOFTerm()
             )
         )
     )

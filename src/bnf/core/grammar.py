@@ -1,25 +1,13 @@
 import abc
-import functools
 import logging
 import typing
+
+from .tree import Node, LiteralNode, RuleNode
 
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger('bnf')
 
 RuleName = str
-I = typing.TypeVar('I')
-O = typing.TypeVar('O')
-
-A0 = typing.TypeVar('A0')
-A1 = typing.TypeVar('A1')
-
-def methdispatch(func):
-    dispatcher = functools.singledispatch(func)
-    def wrapper(*args, **kw):
-        return dispatcher.dispatch(args[1].__class__)(*args, **kw)
-    wrapper.register = dispatcher.register
-    functools.update_wrapper(wrapper, func)
-    return wrapper
 
 
 class Language(object):
@@ -45,19 +33,22 @@ class Language(object):
     def get_rule(self, rule_name: RuleName) -> 'Rule':
         return self.rules[rule_name]
 
-    def parse(self, text: str) -> 'Node':
+    def parse(self, text: str) -> Node:
         matches = self._parse_all(text)
         node, = matches
         return node
 
-    def _parse_all(self, text: str) -> typing.Iterable['Node']:
+    def _parse_all(self, text: str) -> typing.Iterable[Node]:
         root = self.get_rule(self.root_rule)
         matches = root.match(text, self)
         return (node for _, node in matches)
 
 
-    def __eq__(self, other: 'Language') -> bool:
-        if self.root_rule != other.root_rule:
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, type(self)):
+            LOGGER.info('%s: other is different type', type(self).__name__)
+            return False
+        elif self.root_rule != other.root_rule:
             LOGGER.info('Langage: root rule is different')
             return False
         elif self.rules.keys() != other.rules.keys():
@@ -88,11 +79,14 @@ class Rule(object):
         self,
         text: str,
         lang: 'Language'
-    ) -> typing.Iterable[typing.Tuple[str, 'Node']]:
+    ) -> typing.Iterable[typing.Tuple[str, Node]]:
         return self.syntax.match(text, self.name, lang)
 
-    def __eq__(self, other: 'Rule') -> bool:
-        if self.name != other.name:
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, type(self)):
+            LOGGER.info('%s: other is different type', type(self).__name__)
+            return False
+        elif self.name != other.name:
             LOGGER.info('Rule: rule names are different')
             return False
         elif self.syntax != other.syntax:
@@ -119,15 +113,18 @@ class Syntax(object):
         text: str,
         rule_name: 'RuleName',
         lang: 'Language'
-    ) -> typing.Iterable[typing.Tuple[str, 'Node']]:
+    ) -> typing.Iterable[typing.Tuple[str, Node]]:
         for index, term_list in enumerate(self.term_groups):
             for leftover, terms in term_list.match(text, lang):
                 node = RuleNode(rule_name, index, terms)
                 yield leftover, node
 
 
-    def __eq__(self, other: 'Syntax') -> bool:
-        if self.term_groups != other.term_groups:
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, type(self)):
+            LOGGER.info('%s: other is different type', type(self).__name__)
+            return False
+        elif tuple(self.term_groups) != tuple(other.term_groups):
             LOGGER.info('Syntax: term groups are different')
             return False
         else:
@@ -148,7 +145,7 @@ class TermGroup(object):
         text: str,
         term_index: int,
         lang: 'Language'
-    ) -> typing.Iterable[typing.Tuple[str, typing.Sequence['Node']]]:
+    ) -> typing.Iterable[typing.Tuple[str, typing.Sequence[Node]]]:
         term = self.terms[term_index]
         next_term_index = term_index + 1
         is_last_term = next_term_index >= len(self.terms)
@@ -167,11 +164,14 @@ class TermGroup(object):
         self,
         text: str,
         lang: 'Language'
-    ) -> typing.Iterable[typing.Tuple[str, typing.Sequence['Node']]]:
+    ) -> typing.Iterable[typing.Tuple[str, typing.Sequence[Node]]]:
         return self._match_impl(text, 0, lang)
 
-    def __eq__(self, other: 'TermGroup') -> bool:
-        if self.terms != other.terms:
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, type(self)):
+            LOGGER.info('%s: other is different type', type(self).__name__)
+            return False
+        elif tuple(self.terms) != tuple(other.terms):
             LOGGER.info('TermGroup: terms are different')
             return False
         else:
@@ -185,7 +185,7 @@ class Term(object, metaclass=abc.ABCMeta):
         self,
         text: str,
         lang: 'Language'
-    ) -> typing.Iterable[typing.Tuple[str, 'Node']]:
+    ) -> typing.Iterable[typing.Tuple[str, Node]]:
         raise NotImplementedError
 
 
@@ -198,11 +198,14 @@ class RuleReference(Term):
         self,
         text: str,
         lang: 'Language'
-    ) -> typing.Iterable[typing.Tuple[str, 'Node']]:
+    ) -> typing.Iterable[typing.Tuple[str, Node]]:
         return lang.get_rule(self.rule_name).match(text, lang)
 
-    def __eq__(self, other: 'Term') -> bool:
-        if not isinstance(other, RuleReference):
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, type(self)):
+            LOGGER.info('%s: other is different type', type(self).__name__)
+            return False
+        elif not isinstance(other, RuleReference):
             LOGGER.info('RuleReference: other is not rule reference')
             return False
         elif self.rule_name != other.rule_name:
@@ -220,12 +223,15 @@ class Literal(Term):
         self,
         text: str,
         lang: Language
-    ) -> typing.Iterable[typing.Tuple[str, 'Node']]:
+    ) -> typing.Iterable[typing.Tuple[str, Node]]:
         if text.startswith(self.text):
             yield text[len(self.text):], LiteralNode(self.text)
 
-    def __eq__(self, other: 'Term') -> bool:
-        if not isinstance(other, Literal):
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, type(self)):
+            LOGGER.info('%s: other is different type', type(self).__name__)
+            return False
+        elif not isinstance(other, Literal):
             LOGGER.info('Literal: other is not a literal')
             return False
         elif self.text != other.text:
@@ -235,224 +241,24 @@ class Literal(Term):
             return True
 
 
-class EOFTerm(Term):
+class EOFTerm(Literal):
+    def __init__(self):
+        super().__init__('')
+
     def match(
         self,
         text: str,
         lang: 'Language'
-    ) -> typing.Iterable[typing.Tuple[str, 'Node']]:
+    ) -> typing.Iterable[typing.Tuple[str, Node]]:
         if text == '':
             yield text, LiteralNode('')
 
-    def __eq__(self, other: 'Term') -> bool:
-        if not isinstance(other, EOFTerm):
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, type(self)):
+            LOGGER.info('%s: other is different type', type(self).__name__)
+            return False
+        elif not isinstance(other, EOFTerm):
             LOGGER.info('EOFTerm: other is not an EOFTerm')
             return False
         else:
             return True
-
-
-class LanguageTransformation(object):
-    def __init__(
-        self,
-        transformation_rules: typing.Dict[
-            RuleName, 'RuleTransformation[typing.Any]'
-        ]
-    ) -> None:
-        self.transformation_rules = transformation_rules
-
-    @classmethod
-    def create(cls):
-        return cls(dict())
-
-    def add_rule_transformation(
-        self,
-        rt: 'RuleTransformation'
-    ) -> 'LanguageTransformation':
-        self.transformation_rules[rt.rule_name] = rt
-        return self
-
-    def transform(self, rule_node: 'RuleNode') -> typing.Any:
-        return rule_node.transform(self)
-
-    def __ilshift__(
-        self,
-        info: typing.Tuple[
-            RuleName,
-            typing.Sequence[typing.Callable[[typing.Any], O]]
-        ]
-    ) -> 'LanguageTransformation':
-        rule_name, transforms = info
-        rt = RuleTransformation(
-            rule_name,
-            SyntaxTransformation(
-                tuple(
-                    TermGroupTransformation(t) for t in transforms
-                )
-            )
-        )
-        self.add_rule_transformation(rt)
-        return self
-
-
-class RuleTransformation(typing.Generic[O]):
-    def __init__(
-        self,
-        rule_name: RuleName,
-        tf_syntax: 'SyntaxTransformation[O]'
-    ) -> None:
-        self.rule_name = rule_name
-        self.tf_syntax = tf_syntax
-
-    def transform(
-        self,
-        rule_node: 'RuleNode',
-        lang: 'LanguageTransformation'
-    ) -> O:
-        return self.tf_syntax.transform(
-            rule_node.children,
-            rule_node.term_group_id,
-            lang
-        )
-
-
-class SyntaxTransformation(typing.Generic[O]):
-    def __init__(
-        self,
-        tf_term_groups: typing.Sequence['TermGroupTransformation[O]']
-    ) -> None:
-        self.tf_term_groups = tf_term_groups
-
-    @classmethod
-    def create(
-        cls,
-        *tf_term_groups: 'TermGroupTransformation[O]'
-    ) -> 'SyntaxTransformation':
-        return cls(tf_term_groups)
-
-    def transform(
-        self,
-        values: typing.Sequence['Node'],
-        index: int,
-        lang: 'LanguageTransformation'
-    ) -> O:
-        try:
-            return self.tf_term_groups[index].transform(values, lang)
-        except IndexError:
-            print(index, self.tf_term_groups)
-            for v in values:
-                print(v)
-
-
-class TermGroupTransformation(typing.Generic[O]):
-    def __init__(
-        self,
-        accumulator: typing.Callable[[typing.Any], O]
-    ) -> None:
-        self.accumulator = accumulator
-
-    def transform(
-        self,
-        values: typing.Sequence['Node'],
-        lang: 'LanguageTransformation'
-    ) -> O:
-        return self.accumulator(
-            LazySequenceTransform.create(
-                values,
-                lang
-            )
-        )
-
-
-class Node(object, metaclass=abc.ABCMeta):
-    @abc.abstractmethod
-    def transform(self, lang: 'LanguageTransformation') -> typing.Any:
-        raise NotImplementedError
-
-
-class RuleNode(Node):
-    def __init__(
-        self,
-        matched_rule: RuleName,
-        term_group_id: int,
-        children: typing.Sequence['Node']
-    ) -> None:
-        self.matched_rule = matched_rule
-        self.term_group_id = term_group_id
-        self.children = children
-
-    def __str__(self):
-        return ''.join(str(c) for c in self.children)
-
-    def transform(self, lang: 'LanguageTransformation') -> typing.Any:
-        return lang.transformation_rules[self.matched_rule].transform(
-            self,
-            lang
-        )
-
-
-class LiteralNode(Node):
-    def __init__(self, value: str) -> None:
-        self.value = value
-
-    def __str__(self):
-        return self.value
-
-    def transform(self, lang: 'LanguageTransformation') -> str:
-        return self.value
-
-@functools.singledispatch
-def _lazy_getitem(_, __):
-    raise NotImplementedError
-
-@_lazy_getitem.register(int)
-def _lazy_getitem_int(i: int, lazys: 'LazySequenceTransform') -> typing.Any:
-    if i not in lazys.cache:
-        lazys.cache[i] = lazys.initial_values[i].transform(lazys.lang)
-    return lazys.cache[i]
-
-@_lazy_getitem.register(slice)
-def _lazy_getitem_slice(
-    s: slice,
-    lazys: 'LazySequenceTransform'
-) -> typing.Sequence:
-    return tuple(
-        lazys[i]
-        for i in range(len(lazys))[s]
-    )
-
-
-class LazySequenceTransform(typing.Sequence):
-    def __init__(
-        self,
-        initial_values: typing.Sequence['Node'],
-        lang: 'LanguageTransformation',
-        cache: typing.Dict[int, typing.Any]
-    ) -> None:
-        super().__init__()
-        self.initial_values = initial_values
-        self.lang = lang
-        self.cache = cache
-
-    @classmethod
-    def create(
-        cls,
-        nodes: typing.Sequence['Node'],
-        lang: 'LanguageTransformation'
-    ) -> 'LazySequenceTransform':
-        return cls(nodes, lang, dict())
-
-    @typing.overload
-    def __getitem__(self, i: int) -> typing.Any:
-        pass
-    @typing.overload
-    def __getitem__(self, s: slice) -> typing.Sequence: # pylint: disable=function-redefined
-        pass
-    def __getitem__(self, x): # pylint: disable=function-redefined
-        return _lazy_getitem(x, self)
-
-    def __len__(self):
-        return len(self.initial_values)
-
-    def __iter__(self):
-        return (self[i] for i in range(len(self)))
