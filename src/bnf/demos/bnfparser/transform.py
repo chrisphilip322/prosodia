@@ -44,7 +44,7 @@ def rule_accum(
         None,
         str,
         None,
-        typing.Sequence[g.TermGroup],
+        typing.List[g.TermGroup],
         None
     ]
 ) -> g.Rule:
@@ -83,7 +83,7 @@ def text_accum_2(
 
 def term_accum_rule(
     values: typing.Tuple[str, g.RuleName, str]
-) -> g.RuleReference:
+) -> g.Term:
     return g.RuleReference(values[1])
 
 @TypeAdder
@@ -135,7 +135,7 @@ lt <<= 'OptWhitespace', [
     nothing[[str], None]
 ]
 lt <<= 'Expression', [
-    list_of[[g.TermGroup], typing.Sequence[g.TermGroup]],
+    list_of[[g.TermGroup], typing.List[g.TermGroup]],
     expression_accum
 ]
 lt <<= 'LineEnd', [
@@ -143,14 +143,14 @@ lt <<= 'LineEnd', [
     nothing[[None, None], None],
 ]
 lt <<= 'SingleLineEnd', [
-    nothing[[None, str], None]
+    nothing[[None, None], None]
 ]
 lt <<= 'List', [
     list_accum_1,
     list_accum_2
 ]
 lt <<= 'Term', [
-    identity[[g.Literal], g.Literal],
+    identity[[g.Literal], g.Term],
     term_accum_rule
 ]
 lt <<= 'Literal', [
