@@ -3,8 +3,8 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='bnf',
-    version='0.1.0',
+    name='prosodia',
+    version='0.2.0',
     author='macbeth322',
     author_email='chrisp533@gmail.com',
     package_dir={'': 'src'},

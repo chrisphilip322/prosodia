@@ -1,8 +1,8 @@
 import unittest
 
-from bnf.demos.bnfparser.text import bnf
-from bnf.demos.bnfparser.parser import lang
-from bnf.demos.bnfparser.transform import lt as transform
+from prosodia.base.bnf.text import bnf
+from prosodia.base.bnf.parser import lang
+from prosodia.base.bnf.transform import lt as transform
 
 class TestBNF(unittest.TestCase):
     def test_bnf_parser_works(self):

@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-from bnf.core.transform import LazySequenceTransform
+from prosodia.core.transform import LazySequenceTransform
 
 class TestLazySequenceTransform(unittest.TestCase):
     def test_lazy_get(self):
