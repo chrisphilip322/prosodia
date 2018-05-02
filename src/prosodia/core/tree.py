@@ -23,8 +23,11 @@ class RuleNode(Node):
         self.term_group_id = term_group_id
         self.children = children
 
-    def __str__(self):
+    def __str__(self) -> str:
         return ''.join(str(c) for c in self.children)
+
+    def __repr__(self) -> str:
+        return '<RuleNode {0}'.format(repr(self.matched_rule))
 
     def transform(self, lang: 'LanguageTransformation') -> typing.Any:
         return lang.transformation_rules[self.matched_rule].transform(
@@ -37,7 +40,7 @@ class LiteralNode(Node):
     def __init__(self, value: str) -> None:
         self.value = value
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.value
 
     def transform(self, lang: 'LanguageTransformation') -> str:
