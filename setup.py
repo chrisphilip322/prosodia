@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='prosodia',
-    version='0.2.0',
+    version='0.2.1',
     author='macbeth322',
     author_email='chrisp533@gmail.com',
     package_dir={'': 'src'},
@@ -13,5 +13,5 @@ setup(
         'typing'
     ],
     setup_requires=['pytest-runner'],
-    tests_require=['pytest'],
+    tests_require=['pytest', 'mypy'],
 )

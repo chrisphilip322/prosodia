@@ -8,11 +8,12 @@ class TestBNF(unittest.TestCase):
     def test_bnf_parser_works(self):
         tree = lang.parse(bnf)
         parsed_lang = transform.transform(tree)
-        self.assertEqual(parsed_lang, lang)
+        print(parsed_lang.equals(lang).messages)
+        self.assertTrue(parsed_lang.equals(lang))
         tree2 = parsed_lang.parse(bnf)
         parsed_lang2 = transform.transform(tree2)
-        self.assertEqual(parsed_lang2, lang)
-        self.assertEqual(parsed_lang2, parsed_lang)
+        self.assertTrue(parsed_lang2.equals(lang))
+        self.assertTrue(parsed_lang2.equals(parsed_lang))
 
         self.assertTrue(lang.validate())
         self.assertTrue(parsed_lang.validate())

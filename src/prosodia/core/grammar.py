@@ -18,7 +18,7 @@ class Language(object):
         self.root_rule = root_rule
 
     @classmethod
-    def create(cls, root_rule: RuleName):
+    def create(cls, root_rule: RuleName) -> 'Language':
         return cls(dict(), root_rule)
 
     def add_rule(self, rule: 'Rule') -> 'Language':
@@ -40,18 +40,21 @@ class Language(object):
         matches = root.match(text, self)
         return (node for _, node in matches)
 
-
-    def __eq__(self, other) -> bool:
-        if not isinstance(other, type(self)):
-            return Validity.invalid(
-                '%s: other is different type', type(self).__name__
-            )
-        elif self.root_rule != other.root_rule:
+    def equals(self, other: 'Language') -> Validity:
+        if self.root_rule != other.root_rule:
             return Validity.invalid('Langage: root rule is different')
         elif self.rules.keys() != other.rules.keys():
             return Validity.invalid('Language: set of rule names are different')
-        elif self.rules != other.rules:
-            return Validity.invalid('Language: rules are different')
+
+        validity = sum(
+            (
+                r.equals(other.rules[k])
+                for k, r in self.rules.items()
+            ),
+            Validity.valid()
+        )
+        if not validity:
+            return validity + Validity.invalid('Language: rules are different')
         else:
             return Validity.valid()
 
@@ -88,15 +91,13 @@ class Rule(object):
     ) -> typing.Iterable[typing.Tuple[str, Node]]:
         return self.syntax.match(text, self.name, lang)
 
-    def __eq__(self, other) -> bool:
-        if not isinstance(other, type(self)):
-            return Validity.invalid(
-                '%s: other is different type', type(self).__name__
-            )
-        elif self.name != other.name:
+    def equals(self, other: 'Rule') -> Validity:
+        if self.name != other.name:
             return Validity.invalid('Rule: rule names are different')
-        elif self.syntax != other.syntax:
-            return Validity.invalid('Rule: syntaxes are different')
+
+        validity = self.syntax.equals(other.syntax)
+        if not validity:
+            return validity + Validity.invalid('Rule: syntaxes are different')
         else:
             return Validity.valid()
 
@@ -128,13 +129,22 @@ class Syntax(object):
                 yield leftover, node
 
 
-    def __eq__(self, other) -> bool:
-        if not isinstance(other, type(self)):
+    def equals(self, other: 'Syntax') -> Validity:
+        if len(self.term_groups) != len(other.term_groups):
             return Validity.invalid(
-                '%s: other is different type', type(self).__name__
+                'Syntax: number of term groups are different'
             )
-        elif tuple(self.term_groups) != tuple(other.term_groups):
-            return Validity.invalid('Syntax: term groups are different')
+        validity = sum(
+            (
+                i.equals(j)
+                for i, j in zip(self.term_groups, other.term_groups)
+            ),
+            Validity.valid()
+        )
+        if not validity:
+            return validity + Validity.invalid(
+                'Syntax: term groups are different'
+            )
         else:
             return Validity.valid()
 
@@ -143,7 +153,7 @@ class Syntax(object):
             (i, j, x)
             for i, x in enumerate(self.term_groups)
             for j, y in enumerate(self.term_groups)
-            if i != j and x == y
+            if i != j and x.equals(y)
         )
         if dupes:
             return Validity.invalid('syntax has duplicate term groups')
@@ -190,13 +200,22 @@ class TermGroup(object):
     ) -> typing.Iterable[typing.Tuple[str, typing.Sequence[Node]]]:
         return self._match_impl(text, 0, lang)
 
-    def __eq__(self, other) -> bool:
-        if not isinstance(other, type(self)):
+    def equals(self, other: 'TermGroup') -> Validity:
+        if len(self.terms) != len(other.terms):
             return Validity.invalid(
-                '%s: other is different type', type(self).__name__
+                'TermGroup: number of terms are different'
             )
-        elif tuple(self.terms) != tuple(other.terms):
-            return Validity.invalid('TermGroup: terms are different')
+        validity = sum(
+            (
+                i.equals(j)
+                for i, j in zip(self.terms, other.terms)
+            ),
+            Validity.valid()
+        )
+        if not validity:
+            return validity + Validity.invalid(
+                'TermGroup: terms are different'
+            )
         else:
             return Validity.valid()
 
@@ -205,12 +224,15 @@ class TermGroup(object):
             return Validity.invalid(
                 'term group needs at least one term'
             )
-        elif len(self.terms) > 1 and any(t == Literal('') for t in self.terms):
+        elif (
+            len(self.terms) > 1 and
+            any(t.equals(Literal('')) for t in self.terms)
+        ):
             return Validity.invalid(
                 'shouldnt have an empty literal in a term group with more than '
                 'one term'
             )
-        elif self.terms[0] == RuleReference(rule_name):
+        elif self.terms[0].equals(RuleReference(rule_name)):
             return Validity.invalid(
                 'term group cannot start with its own rule'
             )
@@ -234,6 +256,10 @@ class Term(object, metaclass=abc.ABCMeta):
     def validate(self, _: 'Language') -> Validity:  # pylint: disable=no-self-use
         return Validity.valid()
 
+    @abc.abstractmethod
+    def equals(self, other: 'Term') -> Validity:
+        raise NotImplementedError
+
 
 class RuleReference(Term):
     """Term that represents a nested rule"""
@@ -247,12 +273,8 @@ class RuleReference(Term):
     ) -> typing.Iterable[typing.Tuple[str, Node]]:
         return lang.get_rule(self.rule_name).match(text, lang)
 
-    def __eq__(self, other) -> bool:
-        if not isinstance(other, type(self)):
-            return Validity.invalid(
-                '%s: other is different type', type(self).__name__
-            )
-        elif not isinstance(other, RuleReference):
+    def equals(self, other: Term) -> Validity:
+        if not isinstance(other, RuleReference):
             return Validity.invalid(
                 'RuleReference: other is not rule reference'
             )
@@ -260,6 +282,9 @@ class RuleReference(Term):
             return Validity.invalid('RuleReference: different rule names')
         else:
             return Validity.valid()
+
+    def __repr__(self) -> str:
+        return '<RuleReference(Term) {0}>'.format(self.rule_name)
 
     def validate(self, lang: 'Language') -> Validity:
         if self.rule_name not in lang.rules:
@@ -282,12 +307,11 @@ class Literal(Term):
         if text.startswith(self.text):
             yield text[len(self.text):], LiteralNode(self.text)
 
-    def __eq__(self, other) -> bool:
-        if not isinstance(other, type(self)):
-            return Validity.invalid(
-                '%s: other is different type', type(self).__name__
-            )
-        elif not isinstance(other, Literal):
+    def __repr__(self) -> str:
+        return '<Literal(Term) {0}>'.format(self.text)
+
+    def equals(self, other: Term) -> Validity:
+        if not isinstance(other, Literal):
             return Validity.invalid('Literal: other is not a literal')
         elif self.text != other.text:
             return Validity.invalid('Literal: text is different')
@@ -296,7 +320,7 @@ class Literal(Term):
 
 
 class EOFTerm(Literal):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__('')
 
     def match(
@@ -307,12 +331,11 @@ class EOFTerm(Literal):
         if text == '':
             yield text, LiteralNode('')
 
-    def __eq__(self, other) -> bool:
-        if not isinstance(other, type(self)):
-            return Validity.invalid(
-                '%s: other is different type', type(self).__name__
-            )
-        elif not isinstance(other, EOFTerm):
+    def __repr__(self) -> str:
+        return '<EOFTerm(Term)>'
+
+    def equals(self, other: Term) -> Validity:
+        if not isinstance(other, EOFTerm):
             return Validity.invalid('EOFTerm: other is not an EOFTerm')
         else:
             return Validity.valid()
