@@ -3,11 +3,19 @@ import typing
 
 from .grammar import RuleName, Literal, RuleReference
 from . import grammar as g
+from .resolvable import (
+    Resolvable,
+    ResolvableFunc,
+    ResolvablePair,
+    resolve,
+    resolve_map
+)
 from .tree import Node, RuleNode, LiteralNode
 from ..validation.transform_validation import Validity, TypedFunc
 
 I = typing.TypeVar('I')
 O = typing.TypeVar('O')
+
 
 class LanguageTransformation(object):
     def __init__(
@@ -19,7 +27,7 @@ class LanguageTransformation(object):
         self.transformation_rules = transformation_rules
 
     @classmethod
-    def create(cls):
+    def create(cls) -> 'LanguageTransformation':
         return cls(dict())
 
     def add_rule_transformation(
@@ -29,14 +37,14 @@ class LanguageTransformation(object):
         self.transformation_rules[rt.rule_name] = rt
         return self
 
-    def transform(self, rule_node: RuleNode) -> typing.Any:
-        return rule_node.transform(self)
+    def transform(self, node: Node) -> typing.Any:
+        return resolve(node.transform(self))
 
     def __ilshift__(
         self,
         info: typing.Tuple[
             RuleName,
-            typing.Sequence[typing.Callable[[typing.Any], O]]
+            typing.Sequence[typing.Callable[[typing.Any], typing.Any]]
         ]
     ) -> 'LanguageTransformation':
         rule_name, transforms = info
@@ -88,10 +96,11 @@ class RuleTransformation(typing.Generic[O]):
 
     def transform(
         self,
-        rule_node: 'RuleNode',
+        rule_node: RuleNode,
         lang: 'LanguageTransformation'
-    ) -> O:
-        return self.tf_syntax.transform(
+    ) -> Resolvable[O]:
+        return ResolvableFunc(
+            self.tf_syntax.transform,
             rule_node.children,
             rule_node.term_group_id,
             lang
@@ -135,8 +144,12 @@ class SyntaxTransformation(typing.Generic[O]):
         values: typing.Sequence[Node],
         index: int,
         lang: 'LanguageTransformation'
-    ) -> O:
-        return self.tf_term_groups[index].transform(values, lang)
+    ) -> Resolvable[O]:
+        return ResolvableFunc(
+            self.tf_term_groups[index].transform,
+            values,
+            lang
+        )
 
     def validate(
         self,
@@ -167,7 +180,7 @@ class SyntaxTransformation(typing.Generic[O]):
 class TermGroupTransformation(typing.Generic[O]):
     def __init__(
         self,
-        accumulator: typing.Callable[[typing.Any], O]
+        accumulator: typing.Callable[[typing.Any], Resolvable[O]]
     ) -> None:
         self.accumulator = accumulator
 
@@ -175,12 +188,13 @@ class TermGroupTransformation(typing.Generic[O]):
         self,
         values: typing.Sequence[Node],
         lang: 'LanguageTransformation'
-    ) -> O:
-        return self.accumulator(
-            LazySequenceTransform.create(
+    ) -> Resolvable[O]:
+        return ResolvablePair(
+            resolve_map(
                 values,
-                lang
-            )
+                lambda v: v.transform(lang)
+            ),
+            self.accumulator
         )
 
     def validate(
@@ -195,19 +209,14 @@ class TermGroupTransformation(typing.Generic[O]):
         if not TypedFunc.assert_composable(transforms, self.accumulator):
             return Validity.invalid(
                 'rule references in the term group are not composable',
-                ' '.join(
-                    t.rule_name
-                    if isinstance(t, RuleReference)
-                    else repr(t.text)
-                    for t in term_group.terms
-                )
+                ' '.join(repr(t) for t in term_group.terms)
             )
         else:
             return Validity.valid()
 
 
 @functools.singledispatch
-def _lazy_getitem(_, __):
+def _lazy_getitem(_: typing.Any, __: typing.Any) -> typing.Any:
     raise NotImplementedError
 
 @_lazy_getitem.register(int)
@@ -230,7 +239,7 @@ def _lazy_getitem_slice(
 class LazySequenceTransform(typing.Sequence):
     def __init__(
         self,
-        initial_values: typing.Sequence['Node'],
+        initial_values: typing.Sequence[Node],
         lang: 'LanguageTransformation',
         cache: typing.Dict[int, typing.Any]
     ) -> None:
@@ -242,7 +251,7 @@ class LazySequenceTransform(typing.Sequence):
     @classmethod
     def create(
         cls,
-        nodes: typing.Sequence['Node'],
+        nodes: typing.Sequence[Node],
         lang: 'LanguageTransformation'
     ) -> 'LazySequenceTransform':
         return cls(nodes, lang, dict())
@@ -253,11 +262,11 @@ class LazySequenceTransform(typing.Sequence):
     @typing.overload
     def __getitem__(self, s: slice) -> typing.Sequence: # pylint: disable=function-redefined
         pass
-    def __getitem__(self, x): # pylint: disable=function-redefined
+    def __getitem__(self, x: typing.Union[int, slice]) -> typing.Any: # pylint: disable=function-redefined
         return _lazy_getitem(x, self)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.initial_values)
 
-    def __iter__(self):
+    def __iter__(self) -> typing.Iterator:
         return (self[i] for i in range(len(self)))

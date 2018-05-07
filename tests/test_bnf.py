@@ -1,18 +1,29 @@
+import traceback
 import unittest
 
 from prosodia.base.bnf.text import bnf
 from prosodia.base.bnf.parser import lang
 from prosodia.base.bnf.transform import lt as transform
+from prosodia.core.transform import TermGroupTransformation
+
+
+def fake_tgt(stacks):
+    real_transform = TermGroupTransformation.transform
+    def wrapped(*args, **kwargs):
+        stacks.append(len(traceback.extract_stack()))
+        return real_transform(*args, **kwargs)
+    return wrapped
+
 
 class TestBNF(unittest.TestCase):
     def test_bnf_parser_works(self):
         tree = lang.parse(bnf)
         parsed_lang = transform.transform(tree)
-        self.assertEqual(parsed_lang, lang)
+        self.assertTrue(parsed_lang.equals(lang))
         tree2 = parsed_lang.parse(bnf)
         parsed_lang2 = transform.transform(tree2)
-        self.assertEqual(parsed_lang2, lang)
-        self.assertEqual(parsed_lang2, parsed_lang)
+        self.assertTrue(parsed_lang2.equals(lang))
+        self.assertTrue(parsed_lang2.equals(parsed_lang))
 
         self.assertTrue(lang.validate())
         self.assertTrue(parsed_lang.validate())
@@ -21,3 +32,20 @@ class TestBNF(unittest.TestCase):
         self.assertTrue(transform.validate(lang))
         self.assertTrue(transform.validate(parsed_lang))
         self.assertTrue(transform.validate(parsed_lang2))
+
+    def test_no_arbitrary_recursion(self):
+        stack = traceback.extract_stack()
+        print(len(stack))
+        stacks = []
+        with unittest.mock.patch(
+            'prosodia.base.bnf.transform.t.TermGroupTransformation.transform',
+            new=fake_tgt(stacks)
+        ):
+            tree = lang.parse(bnf)
+            parsed_lang = transform.transform(tree)
+            self.assertTrue(parsed_lang.equals(lang))
+            tree2 = parsed_lang.parse(bnf)
+            parsed_lang2 = transform.transform(tree2)
+            self.assertTrue(parsed_lang2.equals(lang))
+            self.assertTrue(parsed_lang2.equals(parsed_lang))
+        self.assertTrue(max(stacks) < len(stack) + 5)

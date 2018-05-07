@@ -6,7 +6,7 @@ if typing.TYPE_CHECKING:
 
 S = typing.TypeVar('S')
 T = typing.TypeVar('T')
-Type_ = typing.Union[type, typing.GenericMeta]
+Type_ = typing.Union[type, typing.GenericMeta, None]
 
 
 class Validity(object):
@@ -18,10 +18,10 @@ class Validity(object):
         return cls(list())
 
     @classmethod
-    def invalid(cls, msg: str, *msgs: str):
+    def invalid(cls, msg: str, *msgs: str) -> 'Validity':
         return cls([msg]+list(msgs))
 
-    def __str__(self):
+    def __str__(self) -> str:
         if self:
             return 'Validity.Valid'
         else:
@@ -54,7 +54,7 @@ class TypeAdder(typing.Generic[S, T]):
         )
 
 
-def _get_input_type(func: typing.Callable[[typing.Any], typing.Any]) -> Type_:
+def _get_input_type(func: typing.Callable[[typing.Any], typing.Any]) -> type:
     items = iter(func.__annotations__.items())
     a_name, a_type = next(items)
     _, b_type = next(items)
@@ -62,9 +62,15 @@ def _get_input_type(func: typing.Callable[[typing.Any], typing.Any]) -> Type_:
         next(items)
     except StopIteration:
         if a_name != 'return':
-            return a_type
+            if isinstance(a_type, type):
+                return a_type
+            else:
+                raise ValueError('input annotation is not a "type"')
         else:
-            return b_type
+            if isinstance(b_type, type):
+                return b_type
+            else:
+                raise ValueError('input annotation is not a "type"')
     else:
         raise ValueError('func should only take one input')
 
@@ -110,8 +116,8 @@ class TypedFunc(typing.Generic[S, T]):
             for i in outputs
         )
         input_type = TypedFunc.get_input(input_)
-        output_type = typing.Tuple[tuple(output_types)]
-        return input_type == output_type
+        output_type = typing.Tuple[tuple(output_types)] # type: ignore
+        return bool(input_type == output_type)
 
     @classmethod
     def assert_substitutable(
