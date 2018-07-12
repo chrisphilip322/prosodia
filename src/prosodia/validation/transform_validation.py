@@ -6,7 +6,7 @@ if typing.TYPE_CHECKING:
 
 S = typing.TypeVar('S')
 T = typing.TypeVar('T')
-Type_ = typing.Union[type, typing.GenericMeta, None]
+Type_ = typing.Union[type, None]
 
 
 class Validity(object):
@@ -62,15 +62,19 @@ def _get_input_type(func: typing.Callable[[typing.Any], typing.Any]) -> type:
         next(items)
     except StopIteration:
         if a_name != 'return':
-            if isinstance(a_type, type):
-                return a_type
-            else:
-                raise ValueError('input annotation is not a "type"')
+            # TODO: these type checks don't work for typing module constructs
+            # and these checks are probably unnecessary anyways, but leaving
+            # this todo here for further investigation
+
+            # if isinstance(a_type, type):
+            return a_type
+            # else:
+            #     raise ValueError('input annotation is not a "type"')
         else:
-            if isinstance(b_type, type):
-                return b_type
-            else:
-                raise ValueError('input annotation is not a "type"')
+            # if isinstance(b_type, type):
+            return b_type
+            # else:
+            #     raise ValueError('input annotation is not a "type"')
     else:
         raise ValueError('func should only take one input')
 
