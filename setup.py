@@ -4,10 +4,11 @@ from setuptools import setup, find_packages
 
 setup(
     name='prosodia',
-    version='0.2.2',
+    version='0.2.3',
     author='macbeth322',
     author_email='chrisp533@gmail.com',
     package_dir={'': 'src'},
+    package_data=dict(prosodia=['py.typed']),
     packages=find_packages('src'),
     install_requires=[
         'typing'
