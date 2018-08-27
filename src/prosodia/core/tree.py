@@ -1,14 +1,20 @@
 import abc
+import re
 import typing
 
 if typing.TYPE_CHECKING:
     from .transform import LanguageTransformation  # pylint: disable=unused-import
 
+RE_LINE_START = re.compile('^', flags=re.MULTILINE)
 RuleName = str
 
 class Node(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def transform(self, lang: 'LanguageTransformation') -> typing.Any:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def draw(self) -> str:
         raise NotImplementedError
 
 
@@ -35,6 +41,17 @@ class RuleNode(Node):
             lang
         )
 
+    def draw(self) -> str:
+        children = (
+            RE_LINE_START.sub('  ', child.draw()) for child in self.children
+        )
+        return '\n'.join(
+            [
+                repr(self),
+                *children
+            ]
+        )
+
 
 class LiteralNode(Node):
     def __init__(self, value: str) -> None:
@@ -48,3 +65,6 @@ class LiteralNode(Node):
 
     def transform(self, lang: 'LanguageTransformation') -> str:
         return self.value
+
+    def draw(self) -> str:
+        return repr(self)

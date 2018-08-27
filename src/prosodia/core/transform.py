@@ -1,7 +1,7 @@
 import functools
 import typing
 
-from .grammar import RuleName, Literal, RuleReference
+from .grammar import RuleName, Literal, RuleReference, LiteralRange
 from . import grammar as g
 from .resolvable import (
     Resolvable,
@@ -62,7 +62,11 @@ class LanguageTransformation(object):
     def validate(self, lang: g.Language) -> Validity:
         if self.transformation_rules.keys() != lang.rules.keys():
             return Validity.invalid(
-                'lang does not have the same set of rule names'
+                'lang does not have the same set of rule names. transform '
+                'extras {0}, lang extras {1}.'.format(
+                    self.transformation_rules.keys() - lang.rules.keys(),
+                    lang.rules.keys() - self.transformation_rules.keys(),
+                )
             )
         else:
             return sum(
@@ -81,6 +85,8 @@ class LanguageTransformation(object):
                 self.transformation_rules[term.rule_name]
                     .tf_syntax.tf_term_groups[0].accumulator
             )
+        elif isinstance(term, LiteralRange):
+            return LiteralNode.transform
         else:
             raise ValueError
 
@@ -158,8 +164,11 @@ class SyntaxTransformation(typing.Generic[O]):
     ) -> Validity:
         if len(self.tf_term_groups) != len(syntax.term_groups):
             return Validity.invalid(
-                'the syntax has a different number of term groups than the'
-                'transformation'
+                'the syntax has a different number of term groups than the '
+                'transformation. transform group count {0}, language group '
+                'count {1}'.format(
+                    len(self.tf_term_groups), len(syntax.term_groups)
+                )
             )
         elif not TypedFunc.assert_substitutable(
             tgt.accumulator for tgt in self.tf_term_groups

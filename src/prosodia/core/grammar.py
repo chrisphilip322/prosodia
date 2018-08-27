@@ -31,8 +31,13 @@ class Language(object):
         return self.rules[rule_name]
 
     def parse(self, text: str) -> Node:
-        matches = self._parse_all(text)
-        node, = matches
+        matches = tuple(self._parse_all(text))
+        try:
+            node, = matches
+        except ValueError:
+            for m in matches:
+                print(m.draw())
+            raise
         return node
 
     def _parse_all(self, text: str) -> typing.Iterable[Node]:
@@ -318,6 +323,40 @@ class Literal(Term):
         else:
             return Validity.valid()
 
+
+class LiteralRange(Term):
+    def __init__(self, min_value: int, max_value: int) -> None:
+        self.min_value = min_value
+        self.max_value = max_value
+
+    def match(
+        self,
+        text: str,
+        lang: Language
+    ) -> typing.Iterable[typing.Tuple[str, Node]]:
+        if text:
+            first_char = text[0]
+            if self.min_value <= ord(first_char) <= self.max_value:
+                yield text[1:], LiteralNode(first_char)
+
+    def __repr__(self) -> str:
+        return '<LiteralRange(Term) {0}, {1}>'.format(
+            self.min_value,
+            self.max_value
+        )
+
+    def equals(self, other: Term) -> Validity:
+        if not isinstance(other, LiteralRange):
+            return Validity.invalid(
+                'LiteralRange: other is not a literal range'
+            )
+        elif (
+            self.min_value != other.min_value or
+            self.max_value != other.max_value
+        ):
+            return Validity.invalid('LiteralRange: range values are different')
+        else:
+            return Validity.valid()
 
 class EOFTerm(Literal):
     def __init__(self) -> None:
