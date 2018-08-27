@@ -6,7 +6,7 @@ if typing.TYPE_CHECKING:
 
 S = typing.TypeVar('S')
 T = typing.TypeVar('T')
-Type_ = typing.Union[type, None]
+Type_ = typing.Optional[type]
 
 
 class Validity(object):
@@ -112,13 +112,9 @@ class TypedFunc(typing.Generic[S, T]):
     @classmethod
     def assert_composable(
         cls,
-        outputs: typing.Iterable[typing.Callable],
+        output_types: typing.Iterable[Type_],
         input_: typing.Callable
     ) -> bool:
-        output_types = (
-            TypedFunc.get_output(i)
-            for i in outputs
-        )
         input_type = TypedFunc.get_input(input_)
         output_type = typing.Tuple[tuple(output_types)] # type: ignore
         return bool(input_type == output_type)

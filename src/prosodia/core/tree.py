@@ -2,6 +2,8 @@ import abc
 import re
 import typing
 
+from .resolvable import resolve_map
+
 if typing.TYPE_CHECKING:
     from .transform import LanguageTransformation  # pylint: disable=unused-import
 
@@ -68,3 +70,32 @@ class LiteralNode(Node):
 
     def draw(self) -> str:
         return repr(self)
+
+
+class RepeatNode(Node):
+    def __init__(self, children: typing.Sequence[Node]) -> None:
+        self.children = children
+
+    def transform(self, lang: 'LanguageTransformation') -> typing.Any:
+        return resolve_map(
+            self.children,
+            lambda c: c.transform(lang)
+        )
+
+    def draw(self) -> str:
+        if not self.children:
+            return '>>\n<<'
+        elif len(self.children) == 1:
+            return '>>{0}\n<<'.format(self.children[0])
+        else:
+            first = self.children[0]
+            last = self.children[-1]
+            middle = self.children[1:-1]
+            return '\n'.join([
+                '>>{0}'.format(first)
+            ] + [
+                '  {0}'.format(item)
+                for item in middle
+            ] + [
+                '<<{0}'.format(last)
+            ])

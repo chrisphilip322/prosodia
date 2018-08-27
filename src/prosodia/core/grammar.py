@@ -1,11 +1,18 @@
 import abc
 import typing
 
-from .tree import Node, LiteralNode, RuleNode
-from ..validation.transform_validation import Validity
+from .tree import Node, LiteralNode, RuleNode, RepeatNode
+from ..validation.transform_validation import Validity, TypedFunc, Type_
+if typing.TYPE_CHECKING:
+    from .transform import LanguageTransformation  # pylint: disable=unused-import
 
 RuleName = str
 
+LOG_ON = False
+
+def _log_match(text: str) -> None:
+    if LOG_ON:
+        print(len(text), repr(text[:min(20, len(text))]))
 
 class Language(object):
     """Collection of rules"""
@@ -258,11 +265,16 @@ class Term(object, metaclass=abc.ABCMeta):
     ) -> typing.Iterable[typing.Tuple[str, Node]]:
         raise NotImplementedError
 
-    def validate(self, _: 'Language') -> Validity:  # pylint: disable=no-self-use
-        return Validity.valid()
+    @abc.abstractmethod
+    def validate(self, lang: 'Language') -> Validity:
+        raise NotImplementedError
 
     @abc.abstractmethod
     def equals(self, other: 'Term') -> Validity:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_transform_type(self, lt: 'LanguageTransformation') -> Type_:
         raise NotImplementedError
 
 
@@ -299,6 +311,12 @@ class RuleReference(Term):
         else:
             return Validity.valid()
 
+    def get_transform_type(self, lt: 'LanguageTransformation') -> Type_:
+        rules = lt.transformation_rules  # type: ignore
+        return TypedFunc.get_output(
+            rules[self.rule_name].tf_syntax.tf_term_groups[0].accumulator
+        )
+
 class Literal(Term):
     """Term that represents a plaintext literal"""
     def __init__(self, text: str) -> None:
@@ -310,10 +328,11 @@ class Literal(Term):
         lang: Language
     ) -> typing.Iterable[typing.Tuple[str, Node]]:
         if text.startswith(self.text):
+            _log_match(text)
             yield text[len(self.text):], LiteralNode(self.text)
 
     def __repr__(self) -> str:
-        return '<Literal(Term) {0}>'.format(self.text)
+        return '<Literal(Term) {0!r}>'.format(self.text)
 
     def equals(self, other: Term) -> Validity:
         if not isinstance(other, Literal):
@@ -322,6 +341,12 @@ class Literal(Term):
             return Validity.invalid('Literal: text is different')
         else:
             return Validity.valid()
+
+    def validate(self, lang: Language) -> Validity:
+        return Validity.valid()
+
+    def get_transform_type(self, lt: 'LanguageTransformation') -> Type_:
+        return TypedFunc.get_output(LiteralNode.transform)
 
 
 class LiteralRange(Term):
@@ -337,6 +362,7 @@ class LiteralRange(Term):
         if text:
             first_char = text[0]
             if self.min_value <= ord(first_char) <= self.max_value:
+                _log_match(text)
                 yield text[1:], LiteralNode(first_char)
 
     def __repr__(self) -> str:
@@ -358,10 +384,21 @@ class LiteralRange(Term):
         else:
             return Validity.valid()
 
-class EOFTerm(Literal):
-    def __init__(self) -> None:
-        super().__init__('')
+    def validate(self, lang: Language) -> Validity:
+        if self.max_value < self.min_value:
+            return Validity.invalid('LiteralRange: max cannot be less than min')
+        elif self.max_value < 0 or self.min_value < 0:
+            return Validity.invalid(
+                'LiteralRange: cannot have negative range values'
+            )
+        else:
+            return Validity.valid()
 
+    def get_transform_type(self, lt: 'LanguageTransformation') -> Type_:
+        return TypedFunc.get_output(LiteralNode.transform)
+
+
+class EOFTerm(Term):
     def match(
         self,
         text: str,
@@ -378,3 +415,98 @@ class EOFTerm(Literal):
             return Validity.invalid('EOFTerm: other is not an EOFTerm')
         else:
             return Validity.valid()
+
+    def validate(self, lang: Language) -> Validity:
+        return Validity.valid()
+
+    def get_transform_type(self, lt: 'LanguageTransformation') -> Type_:
+        return TypedFunc.get_output(LiteralNode.transform)
+
+
+class RepeatTerm(Term):
+    def __init__(
+        self,
+        child: Term,
+        min_count: int,
+        max_count: typing.Optional[int]
+    ) -> None:
+        self.child = child
+        self.min_count = min_count
+        self.max_count = max_count
+
+    def __repr__(self) -> str:
+        return '<RepeatTerm(Term) {0!r},{1},{2}>'.format(
+            self.child,
+            self.min_count,
+            self.max_count
+        )
+
+    def match(
+        self,
+        text: str,
+        lang: Language
+    ) -> typing.Iterable[typing.Tuple[str, Node]]:
+        return self._match_impl(text, lang, [])
+
+    def _match_impl(
+        self,
+        text: str,
+        lang: Language,
+        matched_terms: typing.Sequence[Node]
+    ) -> typing.Iterable[typing.Tuple[str, Node]]:
+        if self.max_count is not None and len(matched_terms) > self.max_count:
+            return
+        if len(matched_terms) >= self.min_count:
+            yield text, RepeatNode(matched_terms)
+
+        for leftover_text, term in self.child.match(text, lang):
+            yield from self._match_impl(
+                leftover_text,
+                lang,
+                list(matched_terms) + [term]
+            )
+
+    def equals(self, other: Term) -> Validity:
+        if not isinstance(other, RepeatTerm):
+            return Validity.invalid('RepeatTerm: other is not a RepeatTerm')
+        elif (
+            self.min_count != other.min_count or
+            self.max_count != other.max_count
+        ):
+            return Validity.invalid(
+                'RepeatTerm: other does not have same range'
+            )
+        validity = self.child.equals(other.child)
+        if not validity:
+            return validity + Validity.invalid(
+                'RepeatTerm: children are not equal'
+            )
+        else:
+            return Validity.valid()
+
+    def validate(self, lang: Language) -> Validity:
+        if (
+            self.max_count is not None and
+            self.max_count < self.min_count
+        ):
+            return Validity.invalid(
+                'RepeatTerm: max count is less than min count'
+            )
+        elif self.max_count is not None and self.max_count < 0:
+            return Validity.invalid(
+                'RepeatTerm: max count cannot be negative'
+            )
+        elif self.min_count < 0:
+            return Validity.invalid(
+                'RepeatTerm: min count cannot be negative'
+            )
+        validity = self.child.validate(lang)
+        if not validity:
+            return validity + Validity.invalid(
+                'RepeatTerm: child is not valid'
+            )
+        else:
+            return Validity.valid()
+
+    def get_transform_type(self, lt: 'LanguageTransformation') -> Type_:
+        return typing.Sequence[self.child.get_transform_type(lt)]  #type: ignore

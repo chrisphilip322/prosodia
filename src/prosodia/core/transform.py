@@ -1,7 +1,7 @@
 import functools
 import typing
 
-from .grammar import RuleName, Literal, RuleReference, LiteralRange
+from .grammar import RuleName
 from . import grammar as g
 from .resolvable import (
     Resolvable,
@@ -10,7 +10,7 @@ from .resolvable import (
     resolve,
     resolve_map
 )
-from .tree import Node, RuleNode, LiteralNode
+from .tree import Node, RuleNode
 from ..validation.transform_validation import Validity, TypedFunc
 
 I = typing.TypeVar('I')
@@ -76,19 +76,6 @@ class LanguageTransformation(object):
                 ),
                 Validity.valid()
             )
-
-    def get_transform_of_term(self, term: g.Term) -> typing.Callable:
-        if isinstance(term, Literal):
-            return LiteralNode.transform
-        elif isinstance(term, RuleReference):
-            return (
-                self.transformation_rules[term.rule_name]
-                    .tf_syntax.tf_term_groups[0].accumulator
-            )
-        elif isinstance(term, LiteralRange):
-            return LiteralNode.transform
-        else:
-            raise ValueError
 
 
 class RuleTransformation(typing.Generic[O]):
@@ -211,13 +198,13 @@ class TermGroupTransformation(typing.Generic[O]):
         term_group: g.TermGroup,
         lt: 'LanguageTransformation'
     ) -> Validity:
-        transforms = [
-            lt.get_transform_of_term(term)
+        transform_types = [
+            term.get_transform_type(lt)
             for term in term_group.terms
         ]
-        if not TypedFunc.assert_composable(transforms, self.accumulator):
+        if not TypedFunc.assert_composable(transform_types, self.accumulator):
             return Validity.invalid(
-                'rule references in the term group are not composable',
+                'rule references in the term group are not composable: ' +
                 ' '.join(repr(t) for t in term_group.terms)
             )
         else:
