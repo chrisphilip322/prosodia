@@ -1,4 +1,5 @@
 import abc
+from functools import partial
 import typing
 
 from .tree import Node, LiteralNode, RuleNode, RepeatNode
@@ -8,25 +9,30 @@ if typing.TYPE_CHECKING:
 
 RuleName = str
 
-LOG_ON = False
-
-def _log_match(text: str) -> None:
-    if LOG_ON:
-        print(len(text), repr(text[:min(20, len(text))]))
+class TooManyMatches(Exception):
+    def __init__(self, matches: typing.Sequence[Node]) -> None:
+        super().__init__(self)
+        self.matches = matches
 
 class Language(object):
     """Collection of rules"""
     def __init__(
         self,
         rules: typing.Dict[RuleName, 'Rule'],
-        root_rule: RuleName
+        root_rule: RuleName,
+        debug: bool = False
     ) -> None:
         self.rules = rules
         self.root_rule = root_rule
+        self.debug = debug
 
     @classmethod
     def create(cls, root_rule: RuleName) -> 'Language':
         return cls(dict(), root_rule)
+
+    def log_match(self, text: str) -> None:
+        if self.debug:
+            print(len(text), text[:min(20, len(text))])
 
     def add_rule(self, rule: 'Rule') -> 'Language':
         if rule.name in self.rules:
@@ -41,16 +47,15 @@ class Language(object):
         matches = tuple(self._parse_all(text))
         try:
             node, = matches
-        except ValueError:
-            for m in matches:
-                print(m.draw())
-            raise
+        except ValueError as err:
+            raise TooManyMatches(matches) from err
         return node
 
     def _parse_all(self, text: str) -> typing.Iterable[Node]:
         root = self.get_rule(self.root_rule)
         matches = root.match(text, self)
-        return (node for _, node in matches)
+        for _, node in matches:
+            yield node
 
     def equals(self, other: 'Language') -> Validity:
         if self.root_rule != other.root_rule:
@@ -328,7 +333,7 @@ class Literal(Term):
         lang: Language
     ) -> typing.Iterable[typing.Tuple[str, Node]]:
         if text.startswith(self.text):
-            _log_match(text)
+            lang.log_match(text)
             yield text[len(self.text):], LiteralNode(self.text)
 
     def __repr__(self) -> str:
@@ -362,7 +367,7 @@ class LiteralRange(Term):
         if text:
             first_char = text[0]
             if self.min_value <= ord(first_char) <= self.max_value:
-                _log_match(text)
+                lang.log_match(text)
                 yield text[1:], LiteralNode(first_char)
 
     def __repr__(self) -> str:
@@ -446,25 +451,49 @@ class RepeatTerm(Term):
         text: str,
         lang: Language
     ) -> typing.Iterable[typing.Tuple[str, Node]]:
-        return self._match_impl(text, lang, [])
+        match, more_funcs = self._match_impl(
+            text,
+            lang,
+            []
+        )
+        if match:
+            matches = [match]
+        else:
+            matches = []
+        for func in more_funcs:
+            match, even_more_funcs = func()
+            if match:
+                matches.append(match)
+            more_funcs += even_more_funcs
+        return matches
 
     def _match_impl(
         self,
         text: str,
         lang: Language,
         matched_terms: typing.Sequence[Node]
-    ) -> typing.Iterable[typing.Tuple[str, Node]]:
+    ) -> typing.Tuple[
+        typing.Optional[typing.Tuple[str, Node]],
+        typing.Iterable[typing.Callable[[], typing.Any]]
+    ]:
         if self.max_count is not None and len(matched_terms) > self.max_count:
-            return
+            return None, []
         if len(matched_terms) >= self.min_count:
-            yield text, RepeatNode(matched_terms)
+            match: typing.Optional[typing.Tuple[str, Node]] = (
+                text, RepeatNode(matched_terms)
+            )
+        else:
+            match = None
 
-        for leftover_text, term in self.child.match(text, lang):
-            yield from self._match_impl(
+        more_funcs = [
+            partial(
+                self._match_impl,
                 leftover_text,
                 lang,
                 list(matched_terms) + [term]
-            )
+            ) for leftover_text, term in self.child.match(text, lang)
+        ]
+        return match, more_funcs
 
     def equals(self, other: Term) -> Validity:
         if not isinstance(other, RepeatTerm):

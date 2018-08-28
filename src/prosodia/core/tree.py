@@ -82,20 +82,24 @@ class RepeatNode(Node):
             lambda c: c.transform(lang)
         )
 
-    def draw(self) -> str:
+    def __str__(self) -> str:
+        return ''.join(str(child) for child in self.children)
+
+    def __repr__(self) -> str:
         if not self.children:
-            return '>>\n<<'
-        elif len(self.children) == 1:
-            return '>>{0}\n<<'.format(self.children[0])
+            return '<RepeatNode 0>'
         else:
-            first = self.children[0]
-            last = self.children[-1]
-            middle = self.children[1:-1]
-            return '\n'.join([
-                '>>{0}'.format(first)
-            ] + [
-                '  {0}'.format(item)
-                for item in middle
-            ] + [
-                '<<{0}'.format(last)
-            ])
+            return '<RepeatNode {0!r}*{1}>'.format(
+                self.children[0], len(self.children)
+            )
+
+    def draw(self) -> str:
+        children = (
+            RE_LINE_START.sub('  ', child.draw()) for child in self.children
+        )
+        return '\n'.join(
+            [
+                repr(self),
+                *children
+            ]
+        )
