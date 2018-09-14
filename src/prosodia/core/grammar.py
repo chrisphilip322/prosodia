@@ -12,6 +12,7 @@ RuleName = str
 MatchResult = typing.Tuple['_SmartText', Node]
 
 class _SmartText(object):
+    __slots__ = ['_raw_text', '_start', '_end']
     def __init__(
         self,
         raw_text: str,
