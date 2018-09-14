@@ -1,12 +1,15 @@
 import typing
 
 from ...core import grammar as g, transform as t
-from ...validation.transform_validation import TypeAdder
+from ...validation.new_transform_validation import annotate
 from .parser import ALLOWED_SYMBOLS
 
-S = typing.TypeVar('S')
-T = typing.TypeVar('T')
-Addable = typing.TypeVar('Addable', str, list)
+if typing.TYPE_CHECKING:
+    # TypeVar should be in a `if TYPE_CHECKING` block so that the validation
+    # logic can properly substitute
+    S = typing.TypeVar('S')
+    T = typing.TypeVar('T')
+    Addable = typing.TypeVar('Addable', str, list)
 
 def syntax_accum(
     values: typing.Tuple[typing.Sequence[g.Rule], None]
@@ -44,7 +47,7 @@ def rule_accum(
         None,
         str,
         None,
-        typing.List[g.TermGroup],
+        typing.Sequence[g.TermGroup],
         None
     ]
 ) -> g.Rule:
@@ -56,10 +59,10 @@ def expression_accum(
         None,
         str,
         None,
-        typing.List[g.TermGroup]
+        typing.Sequence[g.TermGroup]
     ]
-) -> typing.List[g.TermGroup]:
-    return [values[0]] + values[4]
+) -> typing.Sequence[g.TermGroup]:
+    return [values[0]] + list(values[4])
 
 def list_accum_1(
     values: typing.Tuple[g.Term]
@@ -86,36 +89,36 @@ def term_accum_rule(
 ) -> g.Term:
     return g.RuleReference(values[1])
 
-@TypeAdder
 def list_of(
-    values: typing.Tuple[T]
-) -> typing.List[T]:
+    values: typing.Tuple['T']
+) -> typing.Sequence['T']:
     return [values[0]]
 
-@TypeAdder
 def push_list(
-    values: typing.Tuple[T, typing.List[T]]
-) -> typing.List[T]:
-    return [values[0]] + values[1]
+    values: typing.Tuple['T', typing.Sequence['T']]
+) -> typing.Sequence['T']:
+    return [values[0]] + list(values[1])
 
-@TypeAdder
-def nothing(_: typing.Tuple) -> None:
+def nothing(_: typing.Tuple['T']) -> None:
     return None
 
-@TypeAdder
-def identity(values: typing.Tuple[T]) -> T:
+def nothing2(_: typing.Tuple['S', 'T']) -> None:
+    return None
+
+def identity(values: typing.Tuple['T']) -> 'T':
     return values[0]
 
-@TypeAdder
+def identity2(values: typing.Tuple['S']) -> 'T':
+    return values[0]  # type: ignore
+
 def unescape(
-    values: typing.Tuple[str, T, str]
-) -> T:
+    values: typing.Tuple[str, 'T', str]
+) -> 'T':
     return values[1]
 
-@TypeAdder
 def add(
-    values: typing.Tuple[Addable, ...]
-) -> Addable:
+    values: typing.Tuple['Addable', 'Addable']
+) -> 'Addable':
     iterable = iter(values)
     accum = next(iterable)
     for item in iterable:
@@ -126,36 +129,36 @@ def add(
 lt = t.LanguageTransformation.create()
 lt <<= 'Syntax', [syntax_accum]
 lt <<= 'Rules', [
-    list_of[[g.Rule], typing.Sequence[g.Rule]],
-    push_list[[g.Rule, typing.Sequence[g.Rule]], typing.Sequence[g.Rule]]
+    annotate(list_of, T=g.Rule),
+    annotate(push_list, T=g.Rule)
 ]
 lt <<= 'Rule', [rule_accum]
 lt <<= 'OptWhitespace', [
-    nothing[[str, None], None],
-    nothing[[str], None]
+    annotate(nothing2, S=str, T=None),
+    annotate(nothing, T=str)
 ]
 lt <<= 'Expression', [
-    list_of[[g.TermGroup], typing.List[g.TermGroup]],
+    annotate(list_of, T=g.TermGroup),
     expression_accum
 ]
 lt <<= 'LineEnd', [
-    nothing[[None], None],
-    nothing[[None, None], None],
+    annotate(nothing, T=None),
+    annotate(nothing2, S=None, T=None),
 ]
 lt <<= 'SingleLineEnd', [
-    nothing[[None, None], None]
+    annotate(nothing2, S=None, T=None),
 ]
 lt <<= 'List', [
     list_accum_1,
     list_accum_2
 ]
 lt <<= 'Term', [
-    identity[[g.Literal], g.Term],
+    annotate(identity2, S=g.Literal, T=g.Term),
     term_accum_rule
 ]
 lt <<= 'Literal', [
-    unescape[[str, g.Literal, str], g.Literal],
-    unescape[[str, g.Literal, str], g.Literal],
+    annotate(unescape, T=g.Literal),
+    annotate(unescape, T=g.Literal),
 ]
 lt <<= 'Text1', [
     text_accum_1,
@@ -166,42 +169,42 @@ lt <<= 'Text2', [
     text_accum_2,
 ]
 lt <<= 'Character', [
-    identity[[str], str]
+    annotate(identity, T=str)
 ] * 3
 lt <<= 'Letter', [
-    identity[[str], str]
+    annotate(identity, T=str)
 ] * 26 * 2
 lt <<= 'Digit', [
-    identity[[str], str]
+    annotate(identity, T=str)
 ] * 10
 lt <<= 'Symbol', [
-    identity[[str], str]
+    annotate(identity, T=str)
 ] * len(ALLOWED_SYMBOLS)
 lt <<= 'Character1', [
-    identity[[str], str],
-    identity[[str], str]
+    annotate(identity, T=str),
+    annotate(identity, T=str)
 ]
 lt <<= 'Character2', [
-    identity[[str], str],
-    identity[[str], str]
+    annotate(identity, T=str),
+    annotate(identity, T=str)
 ]
 lt <<= 'RuleName', [
-    identity[[str], str],
-    add[[str, str], str]
+    annotate(identity, T=str),
+    annotate(add, Addable=str)
 ]
 lt <<= 'RuleEnd', [
-    identity[[str], str],
-    add[[str, str], str]
+    annotate(identity, T=str),
+    annotate(add, Addable=str)
 ]
 lt <<= 'OneRuleEnd', [
-    identity[[str], str],
-    identity[[str], str],
-    add[[str, str], str],
-    add[[str, str], str]
+    annotate(identity, T=str),
+    annotate(identity, T=str),
+    annotate(add, Addable=str),
+    annotate(add, Addable=str)
 ]
 lt <<= 'EOL', [
-    nothing[[str], None]
+    annotate(nothing, T=str)
 ]
 lt <<= 'EOF', [
-    nothing[[str], None]
+    annotate(nothing, T=str)
 ]

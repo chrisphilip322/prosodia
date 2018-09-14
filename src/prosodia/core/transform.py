@@ -11,7 +11,9 @@ from .resolvable import (
     resolve_map
 )
 from .tree import Node, RuleNode
-from ..validation.transform_validation import Validity, TypedFunc
+from ..validation.transform_validation import Validity
+from ..validation.new_transform_validation import (
+    check_composability, check_isomorphic)
 
 I = typing.TypeVar('I')
 O = typing.TypeVar('O')
@@ -111,9 +113,14 @@ class RuleTransformation(typing.Generic[O]):
         else:
             validity = self.tf_syntax.validate(rule.syntax, lt)
             if not validity:
-                return validity + Validity.invalid(
+                v = validity + Validity.invalid(
                     '{0} rule is not valid'.format(repr(self.rule_name))
                 )
+                # TODO revert this to just return
+                for msg in v.messages:
+                    print(msg)
+                raise RuntimeError
+                return v
             else:
                 return Validity.valid()
 
@@ -157,7 +164,7 @@ class SyntaxTransformation(typing.Generic[O]):
                     len(self.tf_term_groups), len(syntax.term_groups)
                 )
             )
-        elif not TypedFunc.assert_substitutable(
+        elif not check_isomorphic(
             tgt.accumulator for tgt in self.tf_term_groups
         ):
             return Validity.invalid(
@@ -202,7 +209,7 @@ class TermGroupTransformation(typing.Generic[O]):
             term.get_transform_type(lt)
             for term in term_group.terms
         ]
-        if not TypedFunc.assert_composable(transform_types, self.accumulator):
+        if not check_composability(transform_types, self.accumulator):
             return Validity.invalid(
                 'rule references in the term group are not composable: ' +
                 ' '.join(repr(t) for t in term_group.terms)

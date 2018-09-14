@@ -16,6 +16,11 @@ def fake_tgt(stacks):
 
 
 class TestBNF(unittest.TestCase):
+    def _assert_validity(self, validity):
+        for msg in validity.messages:
+            print(msg)
+        self.assertTrue(validity)
+
     def test_bnf_parser_works(self):
         tree = lang.parse(bnf)
         parsed_lang = transform.transform(tree)
@@ -25,17 +30,16 @@ class TestBNF(unittest.TestCase):
         self.assertTrue(parsed_lang2.equals(lang))
         self.assertTrue(parsed_lang2.equals(parsed_lang))
 
-        self.assertTrue(lang.validate())
-        self.assertTrue(parsed_lang.validate())
-        self.assertTrue(parsed_lang2.validate())
+        self._assert_validity(lang.validate())
+        self._assert_validity(parsed_lang.validate())
+        self._assert_validity(parsed_lang2.validate())
 
-        self.assertTrue(transform.validate(lang))
-        self.assertTrue(transform.validate(parsed_lang))
-        self.assertTrue(transform.validate(parsed_lang2))
+        self._assert_validity(transform.validate(lang))
+        self._assert_validity(transform.validate(parsed_lang))
+        self._assert_validity(transform.validate(parsed_lang2))
 
     def test_no_arbitrary_recursion(self):
         stack = traceback.extract_stack()
-        print(len(stack))
         stacks = []
         with unittest.mock.patch(
             'prosodia.base.bnf.transform.t.TermGroupTransformation.transform',
@@ -43,9 +47,9 @@ class TestBNF(unittest.TestCase):
         ):
             tree = lang.parse(bnf)
             parsed_lang = transform.transform(tree)
-            self.assertTrue(parsed_lang.equals(lang))
+            self._assert_validity(parsed_lang.equals(lang))
             tree2 = parsed_lang.parse(bnf)
             parsed_lang2 = transform.transform(tree2)
-            self.assertTrue(parsed_lang2.equals(lang))
-            self.assertTrue(parsed_lang2.equals(parsed_lang))
+            self._assert_validity(parsed_lang2.equals(lang))
+            self._assert_validity(parsed_lang2.equals(parsed_lang))
         self.assertTrue(max(stacks) < len(stack) + 5)

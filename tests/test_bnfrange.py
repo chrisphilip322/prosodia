@@ -9,7 +9,8 @@ from prosodia.base.bnfrange.example import (
 class TestBNFRange(unittest.TestCase):
     def _validate(self, t, l):
         validity = t.validate(l)
-        print(validity.messages)
+        for msg in validity.messages:
+            print(msg)
         self.assertTrue(validity)
 
     def test_bnf_range_parser_works(self):

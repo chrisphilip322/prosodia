@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='prosodia',
-    version='0.2.4',
+    version='0.2.5',
     author='macbeth322',
     author_email='chrisp533@gmail.com',
     package_dir={'': 'src'},

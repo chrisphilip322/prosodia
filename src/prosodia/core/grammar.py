@@ -3,7 +3,8 @@ from functools import partial
 import typing
 
 from .tree import Node, LiteralNode, RuleNode, RepeatNode
-from ..validation.transform_validation import Validity, TypedFunc, Type_
+from ..validation.transform_validation import Validity
+from ..validation.new_transform_validation import get_return_type
 if typing.TYPE_CHECKING:
     from .transform import LanguageTransformation  # pylint: disable=unused-import
 
@@ -279,7 +280,7 @@ class Term(object, metaclass=abc.ABCMeta):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_transform_type(self, lt: 'LanguageTransformation') -> Type_:
+    def get_transform_type(self, lt: 'LanguageTransformation') -> type:
         raise NotImplementedError
 
 
@@ -316,9 +317,9 @@ class RuleReference(Term):
         else:
             return Validity.valid()
 
-    def get_transform_type(self, lt: 'LanguageTransformation') -> Type_:
+    def get_transform_type(self, lt: 'LanguageTransformation') -> type:
         rules = lt.transformation_rules  # type: ignore
-        return TypedFunc.get_output(
+        return get_return_type(
             rules[self.rule_name].tf_syntax.tf_term_groups[0].accumulator
         )
 
@@ -350,8 +351,8 @@ class Literal(Term):
     def validate(self, lang: Language) -> Validity:
         return Validity.valid()
 
-    def get_transform_type(self, lt: 'LanguageTransformation') -> Type_:
-        return TypedFunc.get_output(LiteralNode.transform)
+    def get_transform_type(self, lt: 'LanguageTransformation') -> type:
+        return get_return_type(LiteralNode.transform)
 
 
 class LiteralRange(Term):
@@ -399,8 +400,8 @@ class LiteralRange(Term):
         else:
             return Validity.valid()
 
-    def get_transform_type(self, lt: 'LanguageTransformation') -> Type_:
-        return TypedFunc.get_output(LiteralNode.transform)
+    def get_transform_type(self, lt: 'LanguageTransformation') -> type:
+        return get_return_type(LiteralNode.transform)
 
 
 class EOFTerm(Term):
@@ -424,8 +425,8 @@ class EOFTerm(Term):
     def validate(self, lang: Language) -> Validity:
         return Validity.valid()
 
-    def get_transform_type(self, lt: 'LanguageTransformation') -> Type_:
-        return TypedFunc.get_output(LiteralNode.transform)
+    def get_transform_type(self, lt: 'LanguageTransformation') -> type:
+        return get_return_type(LiteralNode.transform)
 
 
 class RepeatTerm(Term):
@@ -537,5 +538,5 @@ class RepeatTerm(Term):
         else:
             return Validity.valid()
 
-    def get_transform_type(self, lt: 'LanguageTransformation') -> Type_:
+    def get_transform_type(self, lt: 'LanguageTransformation') -> type:
         return typing.Sequence[self.child.get_transform_type(lt)]  #type: ignore
