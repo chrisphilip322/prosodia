@@ -10,6 +10,7 @@ if typing.TYPE_CHECKING:
 RE_LINE_START = re.compile('^', flags=re.MULTILINE)
 RuleName = str
 
+
 class Node(object, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def transform(self, lang: 'LanguageTransformation') -> typing.Any:

@@ -11,7 +11,7 @@ class Validity(object):
 
     @classmethod
     def invalid(cls, msg: str, *msgs: str) -> 'Validity':
-        return cls([msg]+list(msgs))
+        return cls([msg] + list(msgs))
 
     def __str__(self) -> str:
         if self:

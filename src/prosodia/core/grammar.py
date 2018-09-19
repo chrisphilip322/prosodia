@@ -11,8 +11,10 @@ if typing.TYPE_CHECKING:
 RuleName = str
 MatchResult = typing.Tuple['_SmartText', Node]
 
+
 class _SmartText(object):
     __slots__ = ['_raw_text', '_start', '_end']
+
     def __init__(
         self,
         raw_text: str,
@@ -34,7 +36,7 @@ class _SmartText(object):
         print(len(self), self._start, self._end, repr(segment))
 
     def startswith(self, target: str) -> bool:
-        return self._raw_text[self._start: self._start+len(target)] == target
+        return self._raw_text[self._start: self._start + len(target)] == target
 
     @typing.overload
     def __getitem__(self, index: int) -> str:
@@ -202,7 +204,6 @@ class Syntax(object):
             for leftover, terms in term_list.match(text, lang):
                 node = RuleNode(rule_name, index, terms)
                 yield leftover, node
-
 
     def equals(self, other: 'Syntax') -> Validity:
         if len(self.term_groups) != len(other.term_groups):
@@ -379,6 +380,7 @@ class RuleReference(Term):
         return get_return_type(
             rules[self.rule_name].tf_syntax.tf_term_groups[0].accumulator
         )
+
 
 class Literal(Term):
     """Term that represents a plaintext literal"""
@@ -596,4 +598,4 @@ class RepeatTerm(Term):
             return Validity.valid()
 
     def get_transform_type(self, lt: 'LanguageTransformation') -> type:
-        return typing.Sequence[self.child.get_transform_type(lt)]  #type: ignore
+        return typing.Sequence[self.child.get_transform_type(lt)]  # type: ignore
