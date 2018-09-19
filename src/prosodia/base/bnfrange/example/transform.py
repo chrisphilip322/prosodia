@@ -1,12 +1,13 @@
 import typing
 
 from ....core import grammar as g, transform as t
-from ....validation.new_transform_validation import annotate
+from ....validation.transform_validation import annotate
 
 if typing.TYPE_CHECKING:
     T = typing.TypeVar('T')
     T2 = typing.TypeVar('T2')
     Addable = typing.TypeVar('Addable', str, list)
+
 
 def syntax_accum(
     values: typing.Tuple[typing.Sequence[g.Rule], None]
@@ -35,6 +36,7 @@ def syntax_accum(
         lang.add_rule(rule)
     return lang
 
+
 def rule_accum(
     values: typing.Tuple[
         None,
@@ -50,6 +52,7 @@ def rule_accum(
 ) -> g.Rule:
     return g.Rule(values[2], g.Syntax(values[7]))
 
+
 def expression_accum(
     values: typing.Tuple[
         g.TermGroup,
@@ -61,36 +64,43 @@ def expression_accum(
 ) -> typing.Sequence[g.TermGroup]:
     return [values[0]] + list(values[4])
 
+
 def list_accum_1(
     values: typing.Tuple[g.Term]
 ) -> g.TermGroup:
     return g.TermGroup(list(values))
+
 
 def list_accum_2(
     values: typing.Tuple[g.Term, None, g.TermGroup]
 ) -> g.TermGroup:
     return g.TermGroup([values[0]] + list(values[2].terms))
 
+
 def text_accum_1(
     values: typing.Tuple[str]
 ) -> g.Literal:
     return g.Literal(values[0])
+
 
 def text_accum_2(
     values: typing.Tuple[str, g.Literal]
 ) -> g.Literal:
     return g.Literal(values[0] + values[1].text)
 
+
 def term_accum_rule(
     values: typing.Tuple[str, g.RuleName, str]
 ) -> g.Term:
     return g.RuleReference(values[1])
+
 
 def literal_range_accum1(
     values: typing.Tuple[str, str, str]
 ) -> g.LiteralRange:
     number = int(values[1])
     return g.LiteralRange(number, number)
+
 
 def literal_range_accum2(
     values: typing.Tuple[str, str, str, str, str]
@@ -99,32 +109,40 @@ def literal_range_accum2(
     second = int(values[3])
     return g.LiteralRange(first, second)
 
+
 def list_of(
     values: typing.Tuple['T']
 ) -> typing.Sequence['T']:
     return [values[0]]
+
 
 def push_list(
     values: typing.Tuple['T', typing.Sequence['T']]
 ) -> typing.Sequence['T']:
     return [values[0]] + list(values[1])
 
+
 def nothing(_: typing.Tuple['T']) -> None:
     return None
+
 
 def nothing2(_: typing.Tuple['T', 'T2']) -> None:
     return None
 
+
 def identity(values: typing.Tuple['T']) -> 'T':
     return values[0]
 
+
 def identity2(values: typing.Tuple['T']) -> 'T2':
     return values[0]  # type: ignore
+
 
 def unescape(
     values: typing.Tuple[str, 'T', str]
 ) -> 'T':
     return values[1]
+
 
 def add(
     values: typing.Tuple['Addable', 'Addable']
