@@ -1,8 +1,0 @@
-https://en.wikipedia.org/wiki/Augmented_Backus%E2%80%93Naur_form
-
-goal is to be able to parse ABNF and transform it into something that can be
-transformed with a regular BNF transform
-
-
-  - define extra subtypes of `Node` to encapsulate the extra transform logic for
-    ABNF nodes
