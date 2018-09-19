@@ -1,7 +1,7 @@
 import typing
 
 from ...core import grammar as g, transform as t
-from ...validation.new_transform_validation import annotate
+from ...validation.transform_validation import annotate
 from .parser import ALLOWED_SYMBOLS
 
 if typing.TYPE_CHECKING:

@@ -11,8 +11,8 @@ from .resolvable import (
     resolve_map
 )
 from .tree import Node, RuleNode
-from ..validation.transform_validation import Validity
-from ..validation.new_transform_validation import (
+from ..validation.validity import Validity
+from ..validation.transform_validation import (
     check_composability, check_isomorphic)
 
 I = typing.TypeVar('I')
@@ -116,10 +116,6 @@ class RuleTransformation(typing.Generic[O]):
                 v = validity + Validity.invalid(
                     '{0} rule is not valid'.format(repr(self.rule_name))
                 )
-                # TODO revert this to just return
-                for msg in v.messages:
-                    print(msg)
-                raise RuntimeError
                 return v
             else:
                 return Validity.valid()

@@ -3,8 +3,8 @@ from functools import partial
 import typing
 
 from .tree import Node, LiteralNode, RuleNode, RepeatNode
-from ..validation.transform_validation import Validity
-from ..validation.new_transform_validation import get_return_type
+from ..validation.validity import Validity
+from ..validation.transform_validation import get_return_type
 if typing.TYPE_CHECKING:
     from .transform import LanguageTransformation  # pylint: disable=unused-import
 
