@@ -9,7 +9,7 @@ test_requirements = [
 
 setup(
     name='prosodia',
-    version='0.2.5',
+    version='0.2.6',
     author='macbeth322',
     author_email='chrisp533@gmail.com',
     package_dir={'': 'src'},
