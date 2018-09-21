@@ -29,11 +29,11 @@ class _SmartText(object):
     def __len__(self) -> int:
         return self._end - self._start
 
-    def log_front(self, size: int) -> None:
+    def log_front(self, size: int, *args: object) -> None:
         segment = self._raw_text[
             self._start:self._end if len(self) < size else self._start + size
         ]
-        print(len(self), self._start, self._end, repr(segment))
+        print(len(self), self._start, self._end, repr(segment), *args)
 
     def startswith(self, target: str) -> bool:
         return self._raw_text[self._start: self._start + len(target)] == target
@@ -88,9 +88,9 @@ class Language(object):
     def create(cls, root_rule: RuleName) -> 'Language':
         return cls(dict(), root_rule)
 
-    def log_match(self, text: _SmartText) -> None:
+    def log_match(self, text: _SmartText, *args: object) -> None:
         if self.debug:
-            text.log_front(20)
+            text.log_front(20, *args)
 
     def add_rule(self, rule: 'Rule') -> 'Language':
         if rule.name in self.rules:
@@ -107,6 +107,8 @@ class Language(object):
         if not matches:
             raise NoMatches
         elif len(matches) > 1:
+            for m in matches:
+                print(m.draw())
             raise TooManyMatches(matches)
         else:
             return matches[0]
@@ -352,7 +354,10 @@ class RuleReference(Term):
         text: _SmartText,
         lang: 'Language'
     ) -> typing.Iterable[MatchResult]:
-        return lang.get_rule(self.rule_name).match(text, lang)
+        matches = lang.get_rule(self.rule_name).match(text, lang)
+        for match in matches:
+            lang.log_match(match[0], 'rule ref', self.rule_name)
+            yield match
 
     def equals(self, other: Term) -> Validity:
         if not isinstance(other, RuleReference):
@@ -393,7 +398,7 @@ class Literal(Term):
         lang: Language
     ) -> typing.Iterable[MatchResult]:
         if text.startswith(self.text):
-            lang.log_match(text)
+            lang.log_match(text, 'literal', self.text)
             yield text[len(self.text):], LiteralNode(self.text)
 
     def __repr__(self) -> str:
@@ -427,7 +432,7 @@ class LiteralRange(Term):
         if text:
             first_char = text[0]
             if self.min_value <= ord(first_char) <= self.max_value:
-                lang.log_match(text)
+                lang.log_match(text, 'range', self.min_value, self.max_value)
                 yield text[1:], LiteralNode(first_char)
 
     def __repr__(self) -> str:
@@ -470,6 +475,7 @@ class EOFTerm(Term):
         lang: 'Language'
     ) -> typing.Iterable[MatchResult]:
         if not text:
+            lang.log_match(text, 'EOF')
             yield text, LiteralNode('')
 
     def __repr__(self) -> str:
@@ -517,15 +523,13 @@ class RepeatTerm(Term):
             []
         )
         if match:
-            matches = [match]
-        else:
-            matches = []
+            yield match
         for func in more_funcs:
             match, even_more_funcs = func()
             if match:
-                matches.append(match)
+                lang.log_match(match[0], 'repeat', len(match[1].children))
+                yield match
             more_funcs += even_more_funcs
-        return matches
 
     def _match_impl(
         self,
@@ -533,13 +537,13 @@ class RepeatTerm(Term):
         lang: Language,
         matched_terms: typing.Sequence[Node]
     ) -> typing.Tuple[
-        typing.Optional[MatchResult],
+        typing.Optional[typing.Tuple[_SmartText, RepeatNode]],
         typing.Iterable[typing.Callable[[], typing.Any]]
     ]:
         if self.max_count is not None and len(matched_terms) > self.max_count:
             return None, []
         if len(matched_terms) >= self.min_count:
-            match: typing.Optional[MatchResult] = (
+            match: typing.Optional[typing.Tuple[_SmartText, RepeatNode]] = (
                 text, RepeatNode(matched_terms)
             )
         else:
