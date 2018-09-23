@@ -1,7 +1,7 @@
 import unittest
 
 from prosodia.base.bnfrepeat.text import bnfrepeattext
-from prosodia.base.bnfrepeat.parser import lang
+from prosodia.base.bnfrepeat.parser import create_language
 from prosodia.base.bnfrepeat.transform import lt as transform
 from prosodia.base.bnfrepeat.example import (
     example_bnfrepeattext, example_transform)
@@ -14,6 +14,7 @@ class TestBNFRange(unittest.TestCase):
         self.assertTrue(validity)
 
     def test_bnf_range_parser_works(self):
+        lang = create_language()
         tree = lang.parse(bnfrepeattext)
         parsed_lang = transform.transform(tree)
         self.assertTrue(parsed_lang.equals(lang))
@@ -31,6 +32,7 @@ class TestBNFRange(unittest.TestCase):
         self._validate(transform, parsed_lang2)
 
     def test_bnf_range_example_parser_works(self):
+        lang = create_language()
         tree = lang.parse(example_bnfrepeattext)
         parsed_lang = transform.transform(tree)
 

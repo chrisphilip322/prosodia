@@ -1,7 +1,7 @@
 import unittest
 
 from prosodia.base.bnfrange.text import bnfrangetext
-from prosodia.base.bnfrange.parser import lang
+from prosodia.base.bnfrange.parser import create_language
 from prosodia.base.bnfrange.transform import lt as transform
 from prosodia.base.bnfrange.example import (
     example_bnfrangetext, example_transform)
@@ -14,6 +14,7 @@ class TestBNFRange(unittest.TestCase):
         self.assertTrue(validity)
 
     def test_bnf_range_parser_works(self):
+        lang = create_language()
         tree = lang.parse(bnfrangetext)
         parsed_lang = transform.transform(tree)
         self.assertTrue(parsed_lang.equals(lang))
@@ -31,6 +32,7 @@ class TestBNFRange(unittest.TestCase):
         self._validate(transform, parsed_lang2)
 
     def test_bnf_range_example_parser_works(self):
+        lang = create_language()
         tree = lang.parse(example_bnfrangetext)
         parsed_lang = transform.transform(tree)
 

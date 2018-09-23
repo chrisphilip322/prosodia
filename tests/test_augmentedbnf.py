@@ -1,15 +1,14 @@
 import unittest
 
 from prosodia.base.augmentedbnf.text import augmentedbnf_text
-from prosodia.base.augmentedbnf.parser import lang
+from prosodia.base.augmentedbnf.parser import create_language
 from prosodia.base.augmentedbnf.transform import lt as transform
 from prosodia.base.augmentedbnf.example import (
     example_augmentedbnf_text, example_transform)
 
 
 class TestAugmentedBNF(unittest.TestCase):
-    def _validate(self, t, l):
-        validity = t.validate(l)
+    def _validate(self, validity):
         for msg in validity.messages:
             print(msg)
         self.assertTrue(validity)
@@ -35,9 +34,12 @@ class TestAugmentedBNF(unittest.TestCase):
         # self._validate(transform, parsed_lang2)
 
     def test_augmentedbnf_example_parser_works(self):
+        lang = create_language()
+        self._validate(lang.validate())
+        self._validate(transform.validate(lang))
         # lang.debug = True
         tree = lang.parse(example_augmentedbnf_text)
-        # parsed_lang = transform.transform(tree)
+        parsed_lang = transform.transform(tree)
 
         # self._validate(example_transform, parsed_lang)
 

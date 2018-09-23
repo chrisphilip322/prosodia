@@ -2,7 +2,7 @@ import traceback
 import unittest
 
 from prosodia.base.bnf.text import bnf
-from prosodia.base.bnf.parser import lang
+from prosodia.base.bnf.parser import create_language
 from prosodia.base.bnf.transform import lt as transform
 from prosodia.core.transform import TermGroupTransformation
 
@@ -22,6 +22,7 @@ class TestBNF(unittest.TestCase):
         self.assertTrue(validity)
 
     def test_bnf_parser_works(self):
+        lang = create_language()
         tree = lang.parse(bnf)
         parsed_lang = transform.transform(tree)
         self.assertTrue(parsed_lang.equals(lang))
@@ -39,6 +40,7 @@ class TestBNF(unittest.TestCase):
         self._assert_validity(transform.validate(parsed_lang2))
 
     def test_no_arbitrary_recursion(self):
+        lang = create_language()
         stack = traceback.extract_stack()
         stacks = []
         with unittest.mock.patch(
