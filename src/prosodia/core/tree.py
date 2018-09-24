@@ -73,11 +73,12 @@ class LiteralNode(Node):
         return repr(self)
 
 
-class RepeatNode(Node):
+class MultiNode(Node):
     def __init__(self, children: typing.Sequence[Node]) -> None:
         self.children = children
 
     def transform(self, lang: 'LanguageTransformation') -> typing.Any:
+        # TODO: group term needs to know which group was used
         return resolve_map(
             self.children,
             lambda c: c.transform(lang)
@@ -88,10 +89,10 @@ class RepeatNode(Node):
 
     def __repr__(self) -> str:
         if not self.children:
-            return '<RepeatNode 0>'
+            return '<MultiNode 0>'
         else:
-            return '<RepeatNode {0!r}*{1}>'.format(
-                self.children[0], len(self.children)
+            return '<MultiNode {0}>'.format(
+                ','.join(repr(c) for c in self.children)
             )
 
     def draw(self) -> str:

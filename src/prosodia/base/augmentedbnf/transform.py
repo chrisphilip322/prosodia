@@ -3,10 +3,9 @@ import typing
 from ...core import grammar as g, transform as t
 from ...validation.transform_validation import annotate
 
-if typing.TYPE_CHECKING:
-    T = typing.TypeVar('T')
-    T2 = typing.TypeVar('T2')
-    Addable = typing.TypeVar('Addable', str, list)
+from ._transform_helpers import (
+    nothing, nothing2, identity, identity2, add, unescape)
+from ._transform_terminals import add_terminal_transforms
 
 
 def syntax_accum(
@@ -59,6 +58,7 @@ def expression_accum(
         typing.Sequence[g.TermGroup]
     ]
 ) -> typing.List[g.TermGroup]:
+    # TODO: return a list of lists instead
     return [values[0]] + list(values[1])
 
 
@@ -78,12 +78,6 @@ def text_accum_2(
     values: typing.Tuple[str, g.Literal]
 ) -> g.Literal:
     return g.Literal(values[0] + values[1].text)
-
-
-def base_term_accum_rule(
-    values: typing.Tuple[str, g.RuleName, str]
-) -> g.Term:
-    return g.RuleReference(values[1])
 
 
 def literal_range_accum1(
@@ -162,50 +156,6 @@ def rule_name_accum(
     return val
 
 
-def list_of(
-    values: typing.Tuple['T']
-) -> typing.List['T']:
-    return [values[0]]
-
-
-def push_list(
-    values: typing.Tuple['T', typing.List['T']]
-) -> typing.List['T']:
-    return [values[0]] + values[1]
-
-
-def nothing(_: typing.Tuple['T']) -> None:
-    return None
-
-
-def nothing2(_: typing.Tuple['T', 'T2']) -> None:
-    return None
-
-
-def identity(values: typing.Tuple['T']) -> 'T':
-    return values[0]
-
-
-def identity2(values: typing.Tuple['T']) -> 'T2':
-    return values[0]  # type: ignore
-
-
-def unescape(
-    values: typing.Tuple[str, 'T', str]
-) -> 'T':
-    return values[1]
-
-
-def add(
-    values: typing.Tuple['Addable', 'Addable']
-) -> 'Addable':
-    iterable = iter(values)
-    accum = next(iterable)
-    for item in iterable:
-        accum += item
-    return accum
-
-
 def text_accum(
     values: typing.Tuple[typing.Sequence[str]]
 ) -> g.Literal:
@@ -214,6 +164,43 @@ def text_accum(
     for item in iterable:
         accum += item
     return g.Literal(accum)
+
+
+def _repeat_term_accum1(
+    values: typing.Tuple[typing.Tuple[int, typing.Optional[int]], g.Term]
+) -> g.RepeatTerm:
+    ((start, end), term) = values
+    return g.RepeatTerm(term, start, end)
+
+
+def _repeat_term_accum2(
+    values: typing.Tuple[str, g.Term, str]
+) -> g.RepeatTerm:
+    return g.RepeatTerm(values[1], 0, 1)
+
+
+def _string_literal_accum1(
+    values: typing.Tuple[str]
+) -> g.Literal:
+    return g.Literal(values[0], False)
+
+
+def _string_literal_accum2(
+    values: typing.Tuple[str, str]
+) -> g.Literal:
+    (sensitivity, value) = values
+    if sensitivity == "%s":
+        return g.Literal(value, True)
+    elif sensitivity == "%i":
+        return g.Literal(value, False)
+    else:
+        raise RuntimeError('unreachable')
+
+
+def _group_term_accum(
+    values: typing.Tuple[str, None, typing.List[g.TermGroup], None, str]
+) -> g.Term:
+    pass
 
 
 lt = t.LanguageTransformation.create()
@@ -231,21 +218,21 @@ lt <<= 'SingleLineEnd', [
 lt <<= 'List', [
     list_accum
 ]
-lt <<= 'BaseTerm', [
+lt <<= 'RepeatableTerm', [
     annotate(identity2, T=g.Literal, T2=g.Term),
-    base_term_accum_rule,
-    annotate(identity2, T=g.LiteralRange, T2=g.Term),
+    annotate(identity2, T=g.RuleReference, T2=g.Term),
+    annotate(identity2, T=g.GroupTerm, T2=g.Term),
 ]
-lt <<= 'Literal', [
+lt <<= 'LiteralBody', [
     annotate(unescape, T=g.Literal),
     annotate(unescape, T=g.Literal),
 ]
-lt <<= 'Text1', [
-    text_accum
-]
-lt <<= 'Text2', [
-    text_accum
-]
+# lt <<= 'Text', [
+#     text_accum
+# ]
+# lt <<= 'Text2', [
+#     text_accum
+# ]
 lt <<= 'Character', [
     annotate(identity, T=str)
 ] * 3
@@ -261,14 +248,14 @@ lt <<= 'NonZeroDigit', [
 lt <<= 'Symbol', [
     annotate(identity, T=str)
 ] * 6
-lt <<= 'Character1', [
+lt <<= 'Character', [
     annotate(identity, T=str),
     annotate(identity, T=str)
 ]
-lt <<= 'Character2', [
-    annotate(identity, T=str),
-    annotate(identity, T=str)
-]
+# lt <<= 'Character2', [
+#     annotate(identity, T=str),
+#     annotate(identity, T=str)
+# ]
 lt <<= 'RuleName', [
     rule_name_accum
 ]
@@ -284,10 +271,10 @@ lt <<= 'EOL', [
 lt <<= 'EOF', [
     annotate(nothing, T=str)
 ]
-lt <<= 'LiteralRange', [
-    literal_range_accum1,
-    literal_range_accum2,
-]
+# lt <<= 'LiteralRange', [
+#     literal_range_accum1,
+#     literal_range_accum2,
+# ]
 lt <<= 'Number', [
     annotate(identity, T=str),
     number_accum
@@ -307,3 +294,19 @@ lt <<= 'ExpressionEnd', [
 lt <<= 'ListEnd', [
     list_end_accum
 ]
+lt <<= 'RepeatTerm', [
+    _repeat_term_accum1,
+    _repeat_term_accum2
+]
+lt <<= 'AssignmentOperator', [annotate(nothing, T=str)] * 2
+lt <<= 'Comment', [annotate(nothing2, T=str, T2=typing.Sequence[str])]
+lt <<= 'StringLiteral', [
+    _string_literal_accum1,
+    _string_literal_accum2,
+    _string_literal_accum2,
+]
+lt <<= 'GroupTerm', _group_term_accum
+lt = add_terminal_transforms(lt)
+
+
+__all__ = ['lt']

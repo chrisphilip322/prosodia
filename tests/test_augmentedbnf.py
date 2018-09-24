@@ -56,7 +56,3 @@ class TestAugmentedBNF(unittest.TestCase):
 
         # self._validate(example_transform, example_parsed_lang)
         # self._validate(example_transform, example_parsed_lang2)
-
-
-if __name__ == '__main__':
-    TestAugmentedBNF.test_augmentedbnf_example_parser_works(None)
