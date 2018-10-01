@@ -2,7 +2,7 @@ import abc
 import re
 import typing
 
-from .resolvable import resolve_map
+from .resolvable import resolve_map, ResolvablePair, ResolvableFunc, Resolvable
 
 if typing.TYPE_CHECKING:
     from .transform import LanguageTransformation  # pylint: disable=unused-import
@@ -74,15 +74,25 @@ class LiteralNode(Node):
 
 
 class MultiNode(Node):
-    def __init__(self, children: typing.Sequence[Node]) -> None:
+    def __init__(
+        self,
+        children: typing.Sequence[Node],
+        group_index: typing.Optional[int] = None
+    ) -> None:
         self.children = children
+        self.group_index = group_index
 
     def transform(self, lang: 'LanguageTransformation') -> typing.Any:
-        # TODO: group term needs to know which group was used
-        return resolve_map(
+        resolvable_result = resolve_map(
             self.children,
             lambda c: c.transform(lang)
         )
+        if self.group_index is None:
+            return resolvable_result
+        else:
+            return self._make_group_result(
+                resolvable_result
+            )
 
     def __str__(self) -> str:
         return ''.join(str(child) for child in self.children)
@@ -105,3 +115,12 @@ class MultiNode(Node):
                 *children
             ]
         )
+
+    def _make_group_result(self, resolvable: Resolvable) -> Resolvable:
+        def func(result: typing.Any) -> Resolvable:
+            def nested() -> typing.Any:
+                return (self.group_index, result)
+
+            return ResolvableFunc(nested)
+
+        return ResolvablePair(resolvable, func)

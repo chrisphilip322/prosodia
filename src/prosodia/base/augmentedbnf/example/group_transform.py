@@ -1,11 +1,11 @@
 import typing
 
-from ...core import grammar as g, transform as t
-from ...validation.transform_validation import annotate
+from ....core import grammar as g, transform as t
+from ....validation.transform_validation import annotate
 
-from ._transform_helpers import (
+from .._transform_helpers import (
     nothing, nothing2, nothing3, identity, identity2, add, unescape)
-from ._transform_terminals import add_terminal_transforms
+from .._transform_terminals import add_terminal_transforms
 
 
 def rule_reference_accum(values: typing.Tuple[str]) -> g.Term:
@@ -75,7 +75,7 @@ def expression_accum(
         typing.Sequence[g.TermGroup]
     ]
 ) -> typing.List[g.TermGroup]:
-    # TODO: return a list of lists instead
+    # TO DO: return a list of lists instead
     return [values[0]] + list(values[1])
 
 
@@ -186,10 +186,31 @@ def _repeat_term_accum2(
     return g.RepeatTerm(values[1], 0, 1)
 
 
-def _string_literal_accum1(
-    values: typing.Tuple[typing.Sequence[str]]
+def _string_literal_accum(
+    values: typing.Tuple[
+        typing.Sequence[
+            typing.Tuple[
+                int,
+                typing.Union[
+                    typing.Tuple[str],
+                    typing.Tuple[str]
+                ]
+            ]
+        ],
+        typing.Sequence[str]
+    ]
 ) -> g.Literal:
-    return g.Literal(''.join(values[0]), False)
+    value = ''.join(values[1])
+    if values[0]:
+        sensitivity = values[0][1][0]
+        if sensitivity == "%s":
+            return g.Literal(value, True)
+        elif sensitivity == "%i":
+            return g.Literal(value, False)
+        else:
+            raise RuntimeError('unreachable')
+    else:
+        return g.Literal(value, False)
 
 
 def _string_literal_accum2(
@@ -295,9 +316,7 @@ lt <<= 'RepeatTerm', [
 lt <<= 'AssignmentOperator', [annotate(identity, T=str)] * 2
 lt <<= 'Comment', [annotate(nothing2, T=str, T2=typing.Sequence[str])]
 lt <<= 'StringLiteral', [
-    _string_literal_accum1,
-    _string_literal_accum2,
-    _string_literal_accum2,
+    _string_literal_accum,
 ]
 lt <<= 'GroupTerm', [_group_term_accum]
 lt = add_terminal_transforms(lt)

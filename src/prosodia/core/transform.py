@@ -204,8 +204,9 @@ class TermGroupTransformation(typing.Generic[OutputType]):
             term.get_transform_type(lt)
             for term in term_group.terms
         ]
-        if not check_composability(transform_types, self.accumulator):
-            return Validity.invalid(
+        is_composable = check_composability(transform_types, self.accumulator)
+        if not is_composable:
+            return is_composable + Validity.invalid(
                 'rule references in the term group are not composable: ' +
                 ' '.join(repr(t) for t in term_group.terms)
             )

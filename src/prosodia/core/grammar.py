@@ -98,12 +98,25 @@ class Language(object):
 
     def add_rule(self, rule: 'Rule') -> 'Language':
         if rule.name in self.rules:
-            raise ValueError('Rule with that name is already in this Language')
+            raise ValueError(
+                'Rule with that name is already in this Language: {0}'.format(
+                    rule.name
+                )
+            )
         self.rules[rule.name] = rule
         return self
 
     def get_rule(self, rule_name: RuleName) -> 'Rule':
         return self.rules[rule_name]
+
+    def add_to_rule(
+        self,
+        rule_name: RuleName,
+        tgs: typing.Sequence['TermGroup']
+    ) -> None:
+        self.rules[rule_name].syntax.term_groups = (
+            list(self.rules[rule_name].syntax.term_groups) + list(tgs)
+        )
 
     def parse(self, raw_text: str) -> Node:
         text = _SmartText(raw_text)
@@ -379,7 +392,8 @@ class RuleReference(Term):
     def validate(self, lang: 'Language') -> Validity:
         if self.rule_name not in lang.rules:
             return Validity.invalid(
-                'rule reference points to a rule that does not exist'
+                'rule reference points to a rule that does not exist: {0!r}'
+                .format(self.rule_name)
             )
         else:
             return Validity.valid()
@@ -611,13 +625,19 @@ class RepeatTerm(Term):
 
 
 class GroupTerm(Term):
-    def __init__(self, children: typing.Sequence[Term]) -> None:
-        # TODO: allow multiple sets of children
-        self.children = children
+    def __init__(
+        self,
+        children_groups: typing.Sequence[typing.Sequence[Term]]
+    ) -> None:
+        self.children_groups = children_groups
 
     def __repr__(self) -> str:
         return '<GroupTerm(Term) {0}>'.format(
-            ','.join(repr(c) for c in self.children)
+            ','.join(
+                '({0})'.format(
+                    ','.join(repr(c) for c in children)
+                ) for children in self.children_groups
+            )
         )
 
     def equals(self, other: object) -> Validity:
@@ -625,66 +645,49 @@ class GroupTerm(Term):
             return Validity.invalid(
                 'GroupTerm: other is not a GroupTerm'
             )
-        elif len(self.children) != len(other.children):
+        elif len(self.children_groups) != len(other.children_groups):
             return Validity.invalid(
-                'GroupTerm: this term has {0} children and other has {1} '
-                'children'.format(
-                    len(self.children), len(other.children)
+                'GroupTerm: this term has {0} children_groups and other has {1} '
+                'children_groups'.format(
+                    len(self.children_groups), len(other.children_groups)
                 )
             )
-        else:
-            return sum(
-                (c.equals(o) for c, o in zip(self.children, other.children)),
-                Validity.valid()
-            )
+        validity = Validity.valid()
+        for index, (a, b) in enumerate(
+            zip(self.children_groups, other.children_groups)
+        ):
+            if len(a) != len(b):
+                validity += Validity.invalid(
+                    'GroupTerm: children_groups {0} are not the same length'
+                    .format(index)
+                )
+            else:
+                validity += sum(
+                    (c.equals(o) for c, o in zip(a, b)),
+                    Validity.valid()
+                )
+        return validity
 
     def match(
         self,
         text: _SmartText,
         lang: Language
     ) -> typing.Iterable[MatchResult]:
-        funcs: typing.List[typing.Callable[[], typing.Any]] = [
-            partial(self._match_impl, text, lang, [])
-        ]
-        for f in funcs:
-            result: typing.Union[
-                MatchResult,
-                typing.List[typing.Callable[[], typing.Any]]
-            ] = f()
-            if isinstance(result, tuple):
-                yield result
-            else:
-                funcs += result
-
-    def _match_impl(
-        self,
-        text: _SmartText,
-        lang: Language,
-        matched_terms: typing.Sequence[Node]
-    ) -> typing.Union[
-        MatchResult,
-        typing.List[typing.Callable[[], typing.Any]]
-    ]:
-        if len(matched_terms) == len(self.children):
-            return text, MultiNode(matched_terms)
-        else:
-            target = self.children[len(matched_terms)]
-            return [
-                partial(
-                    self._match_impl,
-                    leftover,
-                    lang,
-                    list(matched_terms) + [node]
-                ) for leftover, node in target.match(text, lang)
-            ]
+        for index, children in enumerate(self.children_groups):
+            for leftover, match in _group_match(children, text, lang):
+                yield leftover, MultiNode(match, index)
 
     def validate(self, lang: Language) -> Validity:
         # TODO: validate if the grouping term is necessary, but requires extra context
-        if len(self.children) <= 1:
+        if len(self.children_groups) <= 1 and len(self.children_groups[0]) <= 1:
             return Validity.invalid(
                 'GroupTerm: must have at least two children'
             )
-        children = [c.validate(lang) for c in self.children]
+        children = [
+            c.validate(lang)
+            for children in self.children_groups
+            for c in children
+        ]
         if all(children):
             return Validity.valid()
         else:
@@ -701,6 +704,51 @@ class GroupTerm(Term):
             )
 
     def get_transform_type(self, lt: 'LanguageTransformation') -> type:
-        return typing.Tuple[tuple(
-            c.get_transform_type(lt) for c in self.children
-        )]
+        return typing.Tuple[int, typing.Union[tuple(
+            typing.Tuple[tuple(
+                c.get_transform_type(lt) for c in children
+            )] for children in self.children_groups
+        )]]
+
+
+def _group_match(
+    children: typing.Sequence[Term],
+    text: _SmartText,
+    lang: Language
+) -> typing.Iterable[typing.Tuple[_SmartText, typing.Sequence[Node]]]:
+    funcs: typing.List[typing.Callable[[], typing.Any]] = [
+        partial(_group_match_impl, children, text, lang, [])
+    ]
+    for f in funcs:
+        result: typing.Union[
+            typing.Tuple[_SmartText, typing.Sequence[Node]],
+            typing.List[typing.Callable[[], typing.Any]]
+        ] = f()
+        if isinstance(result, tuple):
+            yield result
+        else:
+            funcs += result
+
+
+def _group_match_impl(
+    children: typing.Sequence[Term],
+    text: _SmartText,
+    lang: Language,
+    matched_terms: typing.Sequence[Node]
+) -> typing.Union[
+    typing.Tuple[_SmartText, typing.Sequence[Node]],
+    typing.List[typing.Callable[[], typing.Any]]
+]:
+    if len(matched_terms) == len(children):
+        return text, matched_terms
+    else:
+        target = children[len(matched_terms)]
+        return [
+            partial(
+                _group_match_impl,
+                children,
+                leftover,
+                lang,
+                list(matched_terms) + [node]
+            ) for leftover, node in target.match(text, lang)
+        ]

@@ -3,6 +3,7 @@ import typing
 if typing.TYPE_CHECKING:
     T = typing.TypeVar('T')
     T2 = typing.TypeVar('T2')
+    T3 = typing.TypeVar('T3')
     Addable = typing.TypeVar('Addable', str, typing.List[object])
 
 
@@ -23,6 +24,10 @@ def nothing(_: typing.Tuple['T']) -> None:
 
 
 def nothing2(_: typing.Tuple['T', 'T2']) -> None:
+    return None
+
+
+def nothing3(_: typing.Tuple['T', 'T2', 'T3']) -> None:
     return None
 
 

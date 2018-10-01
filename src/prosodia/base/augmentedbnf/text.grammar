@@ -11,7 +11,7 @@
 <Term> ::= <RepeatableTerm> | <RepeatTerm>
 <RepeatTerm> ::= <RepeatBody> <RepeatableTerm> | "[" <RepeatableTerm> "]"
 <GroupTerm> ::= "(" <OptWhitespace> <Expression> <OptWhitespace> ")"
-<RepeatBody> ::= <Number>{0,1} "*" <Number>{0,1}
+<RepeatBody> ::= <Number>{0,1} "*" <Number>{0,1} | <Number>
 <RepeatableTerm> ::= <StringLiteral> | <BinaryLiteral> | <HexadecimalLiteral> | <DecimalLiteral> | <RuleName> | <GroupTerm>
 <StringLiteral> ::= <LiteralBody> | "%s" <LiteralBody> | "%i" <LiteralBody>
 <LiteralBody> ::= '"' <Character>{0,} '"'
