@@ -6,4 +6,4 @@ with open(
         'text.grammar'
     )
 ) as f:
-    bnfrangetext = f.read()
+    text = f.read()

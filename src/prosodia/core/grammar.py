@@ -10,6 +10,23 @@ if typing.TYPE_CHECKING:
 
 RuleName = str
 MatchResult = typing.Tuple['_SmartText', Node]
+T = typing.TypeVar('T')
+
+
+class Grammar(typing.Generic[T]):
+    def __init__(
+        self,
+        language: 'Language',
+        transform: 'LanguageTransformation[T]'
+    ) -> None:
+        self.language = language
+        self.transform = transform
+
+    def apply(self, text: str) -> T:
+        return self.transform.transform(self.language.parse(text))
+
+    def validate(self) -> Validity:
+        return self.language.validate() + self.transform.validate(self.language)
 
 
 class _SmartText(object):
@@ -399,7 +416,7 @@ class RuleReference(Term):
             return Validity.valid()
 
     def get_transform_type(self, lt: 'LanguageTransformation') -> type:
-        rules = lt.transformation_rules  # type: ignore
+        rules = lt.transformation_rules
         return get_return_type(
             rules[self.rule_name].tf_syntax.tf_term_groups[0].accumulator
         )
