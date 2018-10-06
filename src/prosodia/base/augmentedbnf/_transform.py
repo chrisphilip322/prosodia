@@ -75,7 +75,7 @@ def expression_accum(
         typing.Sequence[g.TermGroup]
     ]
 ) -> typing.List[g.TermGroup]:
-    # TODO: return a list of lists instead
+    # TO DO: return a list of lists instead
     return [values[0]] + list(values[1])
 
 
@@ -186,10 +186,31 @@ def _repeat_term_accum2(
     return g.RepeatTerm(values[1], 0, 1)
 
 
-def _string_literal_accum1(
-    values: typing.Tuple[typing.Sequence[str]]
+def _string_literal_accum(
+    values: typing.Tuple[
+        typing.Sequence[
+            typing.Tuple[
+                int,
+                typing.Union[
+                    typing.Tuple[str],
+                    typing.Tuple[str]
+                ]
+            ]
+        ],
+        typing.Sequence[str]
+    ]
 ) -> g.Literal:
-    return g.Literal(''.join(values[0]), False)
+    value = ''.join(values[1])
+    if values[0]:
+        sensitivity = values[0][1][0]
+        if sensitivity == "%s":
+            return g.Literal(value, True)
+        elif sensitivity == "%i":
+            return g.Literal(value, False)
+        else:
+            raise RuntimeError('unreachable')
+    else:
+        return g.Literal(value, False)
 
 
 def _string_literal_accum2(
@@ -214,22 +235,21 @@ def _group_term_accum(
     ])
 
 
-lt = t.LanguageTransformation.create()
-lt <<= 'Syntax', [syntax_accum]
-lt <<= 'Rule', [rule_accum]
-lt <<= 'OptWhitespace', [
+transform = t.LanguageTransformation.create('Syntax', [syntax_accum])
+transform <<= 'Rule', [rule_accum]
+transform <<= 'OptWhitespace', [
     annotate(nothing, T=typing.Sequence[str])
 ]
-lt <<= 'Expression', [
+transform <<= 'Expression', [
     expression_accum
 ]
-lt <<= 'SingleLineEnd', [
+transform <<= 'SingleLineEnd', [
     annotate(nothing3, T=None, T2=typing.Sequence[None], T3=None)
 ]
-lt <<= 'List', [
+transform <<= 'List', [
     list_accum
 ]
-lt <<= 'RepeatableTerm', [
+transform <<= 'RepeatableTerm', [
     annotate(identity2, T=g.Literal, T2=g.Term),
     annotate(identity, T=g.Term),
     annotate(identity, T=g.Term),
@@ -237,70 +257,65 @@ lt <<= 'RepeatableTerm', [
     rule_reference_accum,
     annotate(identity, T=g.Term),
 ]
-lt <<= 'LiteralBody', [
+transform <<= 'LiteralBody', [
     annotate(unescape, T=typing.Sequence[str])
 ]
-lt <<= 'Character', [
+transform <<= 'Character', [
     annotate(identity, T=str)
 ] * 3
-lt <<= 'Letter', [
+transform <<= 'Letter', [
     annotate(identity, T=str)
 ] * 2
-lt <<= 'Digit', [
+transform <<= 'Digit', [
     annotate(identity, T=str)
 ] * 2
-lt <<= 'NonZeroDigit', [
+transform <<= 'NonZeroDigit', [
     annotate(identity, T=str)
 ] * 1
-lt <<= 'Symbol', [
+transform <<= 'Symbol', [
     annotate(identity, T=str)
 ] * 6
-lt <<= 'RuleName', [
+transform <<= 'RuleName', [
     rule_name_accum
 ]
-lt <<= 'OneRuleEnd', [
+transform <<= 'OneRuleEnd', [
     annotate(identity, T=str),
     annotate(identity, T=str),
     annotate(add, Addable=str),
     annotate(add, Addable=str)
 ]
-lt <<= 'EOL', [
+transform <<= 'EOL', [
     annotate(nothing, T=str)
 ]
-lt <<= 'EOF', [
+transform <<= 'EOF', [
     annotate(nothing, T=str)
 ]
-lt <<= 'Number', [
+transform <<= 'Number', [
     annotate(identity, T=str),
     number_accum
 ]
-lt <<= 'Term', [
+transform <<= 'Term', [
     annotate(identity, T=g.Term),
     annotate(identity, T=g.Term),
 ]
-lt <<= 'RepeatBody', [
+transform <<= 'RepeatBody', [
     repeat_body_accum1,
     repeat_body_accum2,
 ]
-lt <<= 'ExpressionEnd', [
+transform <<= 'ExpressionEnd', [
     expression_end_accum
 ]
-lt <<= 'ListEnd', [
+transform <<= 'ListEnd', [
     list_end_accum
 ]
-lt <<= 'RepeatTerm', [
+transform <<= 'RepeatTerm', [
     _repeat_term_accum1,
     _repeat_term_accum2
 ]
-lt <<= 'AssignmentOperator', [annotate(identity, T=str)] * 2
-lt <<= 'Comment', [annotate(nothing2, T=str, T2=typing.Sequence[str])]
-lt <<= 'StringLiteral', [
-    _string_literal_accum1,
-    _string_literal_accum2,
-    _string_literal_accum2,
+transform <<= 'AssignmentOperator', [annotate(identity, T=str)] * 2
+transform <<= 'Comment', [annotate(nothing2, T=str, T2=typing.Sequence[str])]
+transform <<= 'StringLiteral', [
+    _string_literal_accum,
 ]
-lt <<= 'GroupTerm', [_group_term_accum]
-lt = add_terminal_transforms(lt)
-
-
-__all__ = ['lt']
+transform <<= 'GroupTerm', [_group_term_accum]
+transform = add_terminal_transforms(transform)

@@ -3,7 +3,7 @@ import os
 with open(
     os.path.join(
         os.path.dirname(__file__),
-        'group_text.grammar'
+        'intermediate_text.grammar'
     )
 ) as f:
-    example_group_augmentedbnf_text = f.read()
+    intermediate_text = f.read()

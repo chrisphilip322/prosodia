@@ -6,4 +6,4 @@ with open(
         'text.grammar'
     )
 ) as f:
-    example_augmentedbnf_text = f.read()
+    text = f.read()
