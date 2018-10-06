@@ -1,1 +1,1 @@
-from ._grammar import create_augmentedbnf
+from ._parser import create_augmentedbnf
