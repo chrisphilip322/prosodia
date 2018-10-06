@@ -6,6 +6,8 @@ from prosodia.base.bnf import create_bnf
 from prosodia.base.bnf._text import text
 from prosodia.core.transform import TermGroupTransformation
 
+from _helpers import validate, validate_recursive_grammar
+
 
 def fake_tgt(stacks):
     real_transform = TermGroupTransformation.transform
@@ -17,25 +19,8 @@ def fake_tgt(stacks):
 
 
 class TestBNF(TestCase):
-    def _assert_validity(self, validity):
-        for msg in validity.messages:
-            print(msg)
-        self.assertTrue(validity)
-
     def test_bnf_parser_works(self):
-        bnf = create_bnf()
-        self._assert_validity(bnf.validate())
-
-        parsed_lang = bnf.apply(text)
-        parsed_grammar = Grammar(parsed_lang, bnf.transform)
-        self.assertTrue(parsed_lang.equals(bnf.language))
-        self._assert_validity(parsed_grammar.validate())
-
-        parsed_lang2 = parsed_grammar.apply(text)
-        parsed_grammar2 = Grammar(parsed_lang2, bnf.transform)
-        self.assertTrue(parsed_lang2.equals(bnf.language))
-        self.assertTrue(parsed_lang2.equals(parsed_lang))
-        self._assert_validity(parsed_grammar2.validate())
+        validate_recursive_grammar(self, create_bnf(), text)
 
     def test_no_arbitrary_recursion(self):
         bnf = create_bnf()
@@ -49,9 +34,9 @@ class TestBNF(TestCase):
             parsed_grammar = Grammar(parsed_lang, bnf.transform)
             parsed_lang2 = parsed_grammar.apply(text)
 
-            self._assert_validity(parsed_lang.equals(bnf.language))
-            self.assertTrue(parsed_lang2.equals(bnf.language))
-            self.assertTrue(parsed_lang2.equals(parsed_lang))
+            validate(self, parsed_lang.equals(bnf.language))
+            validate(self, parsed_lang2.equals(bnf.language))
+            validate(self, parsed_lang2.equals(parsed_lang))
 
         largest = max(stacks, key=len)
         # 5 is kind of an arbitrary number and the minimum that makes this test

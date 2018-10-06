@@ -2,7 +2,7 @@ import typing
 
 from ...core import grammar as g, transform as t
 from ...validation.transform_validation import annotate
-from ._parser import ALLOWED_SYMBOLS
+from ..bnf._parser import ALLOWED_SYMBOLS
 
 if typing.TYPE_CHECKING:
     T = typing.TypeVar('T')
