@@ -5,7 +5,7 @@ from prosodia.base.bnfrange._text import text
 from prosodia.base.bnfrange.example import create_example_bnfrange
 from prosodia.base.bnfrange.example._text import example_text
 
-from _helpers import validate_recursive_grammar
+from ._helpers import validate_recursive_grammar
 
 
 class TestBNFRange(unittest.TestCase):

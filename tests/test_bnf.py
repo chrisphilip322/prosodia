@@ -6,7 +6,7 @@ from prosodia.base.bnf import create_bnf
 from prosodia.base.bnf._text import text
 from prosodia.core.transform import TermGroupTransformation
 
-from _helpers import validate, validate_recursive_grammar
+from ._helpers import validate, validate_recursive_grammar
 
 
 def fake_tgt(stacks):

@@ -7,7 +7,7 @@ from prosodia.base.augmentedbnf._intermediate_parser import (
 )
 from prosodia.base.augmentedbnf._freebies import add_freebie_rules
 
-from _helpers import validate_recursive_grammar, validate
+from ._helpers import validate_recursive_grammar, validate
 
 
 class TestAugmentedBNF(unittest.TestCase):

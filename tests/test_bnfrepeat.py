@@ -5,7 +5,7 @@ from prosodia.base.bnfrepeat._text import text
 from prosodia.base.bnfrepeat.example import create_example_bnfrepeat
 from prosodia.base.bnfrepeat.example._text import example_text
 
-from _helpers import validate_recursive_grammar
+from ._helpers import validate_recursive_grammar
 
 
 class TestBNFRepeat(unittest.TestCase):
