@@ -1,12 +1,12 @@
-Syntax = 1*Rule EOF
+Syntax = 1*Rule
 Rule = OptWhitespace RuleName OptWhitespace AssignmentOperator OptWhitespace Expression 1*SingleLineEnd
 AssignmentOperator = "="
 AssignmentOperator =/ "=/"
 OptWhitespace = *" "
 Expression = List 0*ExpressionEnd
 ExpressionEnd = OptWhitespace "/" OptWhitespace List
-SingleLineEnd = OptWhitespace *1Comment EOL
-Comment = ";" *%d33-126
+SingleLineEnd = OptWhitespace *1Comment LF
+Comment = ";" *(WSP / VCHAR)
 List = Term 0*ListEnd
 ListEnd = 1*" " Term
 Term = RepeatableTerm / RepeatTerm

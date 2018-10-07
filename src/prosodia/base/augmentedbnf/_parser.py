@@ -1,24 +1,16 @@
 from prosodia.core.grammar import Grammar, Language
 
-from ..bnfrepeat import create_bnfrepeat
-
 from ._text import text
 from ._transform import transform
-from ._intermediate_text import intermediate_text
-from ._intermediate_transform import intermediate_transform
-
-
-def create_intermediate_language() -> Language:
-    return create_bnfrepeat().apply(intermediate_text)
-
-
-def create_intermediate_augmentedbnf() -> Grammar[Language]:
-    return Grammar(create_intermediate_language(), intermediate_transform)
+from ._intermediate_parser import create_intermediate_augmentedbnf
+from ._freebies import add_freebie_rules
 
 
 def create_language() -> Language:
-    return create_intermediate_augmentedbnf().apply(text)
+    lang = create_intermediate_augmentedbnf().apply(text)
+    add_freebie_rules(lang)
+    return lang
 
 
 def create_augmentedbnf() -> Grammar[Language]:
-    return Grammar(create_language(), transform)
+    return Grammar(create_language(), transform, False)

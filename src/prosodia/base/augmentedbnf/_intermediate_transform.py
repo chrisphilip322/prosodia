@@ -24,24 +24,6 @@ def syntax_accum(
     if not isinstance(rules[0], g.Rule):
         raise TypeError('First rule cannot use "=/"')
     lang = g.Language.create(rules[0].name)
-    eol_rule = g.Rule(
-        'EOL',
-        g.Syntax.create(
-            g.TermGroup.create(
-                g.Literal('\n')
-            )
-        )
-    )
-    eof_rule = g.Rule(
-        'EOF',
-        g.Syntax.create(
-            g.TermGroup.create(
-                g.EOFTerm()
-            )
-        )
-    )
-    lang.add_rule(eol_rule)
-    lang.add_rule(eof_rule)
     for rule in rules:
         if isinstance(rule, g.Rule):
             lang.add_rule(rule)
@@ -302,4 +284,5 @@ intermediate_transform <<= 'StringLiteral', [
     _string_literal_accum2,
 ]
 intermediate_transform <<= 'GroupTerm', [_group_term_accum]
+intermediate_transform <<= 'CommentChar', [annotate(identity, T=str)] * 3
 intermediate_transform = add_terminal_transforms(intermediate_transform)

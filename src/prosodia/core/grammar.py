@@ -17,13 +17,20 @@ class Grammar(typing.Generic[T]):
     def __init__(
         self,
         language: 'Language',
-        transform: 'LanguageTransformation[T]'
+        transform: 'LanguageTransformation[T]',
+        allow_partial_matches: bool = True
     ) -> None:
         self.language = language
         self.transform = transform
+        self.allow_partial_matches = allow_partial_matches
 
     def apply(self, text: str) -> T:
-        return self.transform.transform(self.language.parse(text))
+        return self.transform.transform(
+            self.language.parse(
+                text,
+                self.allow_partial_matches
+            )
+        )
 
     def validate(self) -> Validity:
         return self.language.validate() + self.transform.validate(self.language)
@@ -135,9 +142,9 @@ class Language(object):
             list(self.rules[rule_name].syntax.term_groups) + list(tgs)
         )
 
-    def parse(self, raw_text: str) -> Node:
+    def parse(self, raw_text: str, allow_partial_matches: bool = True) -> Node:
         text = _SmartText(raw_text)
-        matches = tuple(self._parse_all(text))
+        matches = tuple(self._parse_all(text, allow_partial_matches))
         if not matches:
             raise NoMatches
         elif len(matches) > 1:
@@ -147,11 +154,16 @@ class Language(object):
         else:
             return matches[0]
 
-    def _parse_all(self, text: _SmartText) -> typing.Iterable[Node]:
+    def _parse_all(
+        self,
+        text: _SmartText,
+        allow_partial_matches: bool
+    ) -> typing.Iterable[Node]:
         root = self.get_rule(self.root_rule)
         matches = root.match(text, self)
-        for _, node in matches:
-            yield node
+        for leftover, node in matches:
+            if allow_partial_matches or not leftover:
+                yield node
 
     def equals(self, other: 'Language') -> Validity:
         if self.root_rule != other.root_rule:

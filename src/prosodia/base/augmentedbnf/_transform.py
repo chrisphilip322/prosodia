@@ -6,6 +6,7 @@ from ...validation.transform_validation import annotate
 from ._transform_helpers import (
     nothing, nothing2, nothing3, identity, identity2, add, unescape)
 from ._transform_terminals import add_terminal_transforms
+from ._freebies import add_freebie_rules, add_freebie_transforms
 
 
 def rule_reference_accum(values: typing.Tuple[str]) -> g.Term:
@@ -16,32 +17,14 @@ def syntax_accum(
     values: typing.Tuple[
         typing.Sequence[
             typing.Union[g.Rule, typing.Tuple[str, typing.List[g.TermGroup]]]
-        ],
-        None
+        ]
     ]
 ) -> g.Language:
     rules = values[0]
     if not isinstance(rules[0], g.Rule):
         raise TypeError('First rule cannot use "=/"')
     lang = g.Language.create(rules[0].name)
-    eol_rule = g.Rule(
-        'EOL',
-        g.Syntax.create(
-            g.TermGroup.create(
-                g.Literal('\n')
-            )
-        )
-    )
-    eof_rule = g.Rule(
-        'EOF',
-        g.Syntax.create(
-            g.TermGroup.create(
-                g.EOFTerm()
-            )
-        )
-    )
-    lang.add_rule(eol_rule)
-    lang.add_rule(eof_rule)
+    lang = add_freebie_rules(lang)
     for rule in rules:
         if isinstance(rule, g.Rule):
             lang.add_rule(rule)
@@ -244,7 +227,7 @@ transform <<= 'Expression', [
     expression_accum
 ]
 transform <<= 'SingleLineEnd', [
-    annotate(nothing3, T=None, T2=typing.Sequence[None], T3=None)
+    annotate(nothing3, T=None, T2=typing.Sequence[None], T3=str)
 ]
 transform <<= 'List', [
     list_accum
@@ -284,12 +267,6 @@ transform <<= 'OneRuleEnd', [
     annotate(add, Addable=str),
     annotate(add, Addable=str)
 ]
-transform <<= 'EOL', [
-    annotate(nothing, T=str)
-]
-transform <<= 'EOF', [
-    annotate(nothing, T=str)
-]
 transform <<= 'Number', [
     annotate(identity, T=str),
     number_accum
@@ -313,9 +290,21 @@ transform <<= 'RepeatTerm', [
     _repeat_term_accum2
 ]
 transform <<= 'AssignmentOperator', [annotate(identity, T=str)] * 2
-transform <<= 'Comment', [annotate(nothing2, T=str, T2=typing.Sequence[str])]
+transform <<= 'Comment', [
+    annotate(
+        nothing2,
+        T=str,
+        T2=typing.Sequence[
+            typing.Tuple[
+                int,
+                typing.Union[typing.Tuple[str], typing.Tuple[str]]
+            ]
+        ]
+    )
+]
 transform <<= 'StringLiteral', [
     _string_literal_accum,
 ]
 transform <<= 'GroupTerm', [_group_term_accum]
 transform = add_terminal_transforms(transform)
+transform = add_freebie_transforms(transform)

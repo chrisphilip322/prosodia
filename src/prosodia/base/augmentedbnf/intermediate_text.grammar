@@ -5,7 +5,8 @@
 <Expression> ::= <List> <ExpressionEnd>{0,}
 <ExpressionEnd> ::= <OptWhitespace> "/" <OptWhitespace> <List>
 <SingleLineEnd> ::= <OptWhitespace> <Comment>{0,1} <EOL>
-<Comment> ::= ";" /33-126/{0,}
+<Comment> ::= ";" <CommentChar>{0,}
+<CommentChar> ::= /33-126/ | " " | /9/
 <List> ::= <Term> <ListEnd>{0,}
 <ListEnd> ::= " "{1,} <Term>
 <Term> ::= <RepeatableTerm> | <RepeatTerm>
