@@ -3,6 +3,7 @@ from unittest import mock
 
 from prosodia.core.transform import LazySequenceTransform
 
+
 class TestLazySequenceTransform(unittest.TestCase):
     def test_lazy_get(self):
         m = mock.Mock()

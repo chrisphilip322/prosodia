@@ -2,7 +2,7 @@ import abc
 from functools import partial
 import typing
 
-from .tree import Node, LiteralNode, RuleNode, RepeatNode
+from .tree import Node, LiteralNode, RuleNode, MultiNode
 from ..validation.validity import Validity
 from ..validation.transform_validation import get_return_type
 if typing.TYPE_CHECKING:
@@ -10,6 +10,30 @@ if typing.TYPE_CHECKING:
 
 RuleName = str
 MatchResult = typing.Tuple['_SmartText', Node]
+T = typing.TypeVar('T')
+
+
+class Grammar(typing.Generic[T]):
+    def __init__(
+        self,
+        language: 'Language',
+        transform: 'LanguageTransformation[T]',
+        allow_partial_matches: bool = True
+    ) -> None:
+        self.language = language
+        self.transform = transform
+        self.allow_partial_matches = allow_partial_matches
+
+    def apply(self, text: str) -> T:
+        return self.transform.transform(
+            self.language.parse(
+                text,
+                self.allow_partial_matches
+            )
+        )
+
+    def validate(self) -> Validity:
+        return self.language.validate() + self.transform.validate(self.language)
 
 
 class _SmartText(object):
@@ -29,14 +53,18 @@ class _SmartText(object):
     def __len__(self) -> int:
         return self._end - self._start
 
-    def log_front(self, size: int) -> None:
+    def log_front(self, size: int, *args: object) -> None:
         segment = self._raw_text[
             self._start:self._end if len(self) < size else self._start + size
         ]
-        print(len(self), self._start, self._end, repr(segment))
+        print(len(self), self._start, self._end, repr(segment), *args)
 
-    def startswith(self, target: str) -> bool:
-        return self._raw_text[self._start: self._start + len(target)] == target
+    def startswith(self, target: str, case_sensitive: bool = True) -> bool:
+        src = self._raw_text[self._start: self._start + len(target)]
+        if case_sensitive:
+            return src == target
+        else:
+            return src.lower() == target.lower()
 
     @typing.overload
     def __getitem__(self, index: int) -> str:
@@ -88,34 +116,54 @@ class Language(object):
     def create(cls, root_rule: RuleName) -> 'Language':
         return cls(dict(), root_rule)
 
-    def log_match(self, text: _SmartText) -> None:
+    def log_match(self, text: _SmartText, *args: object) -> None:
         if self.debug:
-            text.log_front(20)
+            text.log_front(20, *args)
 
     def add_rule(self, rule: 'Rule') -> 'Language':
         if rule.name in self.rules:
-            raise ValueError('Rule with that name is already in this Language')
+            raise ValueError(
+                'Rule with that name is already in this Language: {0}'.format(
+                    rule.name
+                )
+            )
         self.rules[rule.name] = rule
         return self
 
     def get_rule(self, rule_name: RuleName) -> 'Rule':
         return self.rules[rule_name]
 
-    def parse(self, raw_text: str) -> Node:
+    def add_to_rule(
+        self,
+        rule_name: RuleName,
+        tgs: typing.Sequence['TermGroup']
+    ) -> None:
+        self.rules[rule_name].syntax.term_groups = (
+            list(self.rules[rule_name].syntax.term_groups) + list(tgs)
+        )
+
+    def parse(self, raw_text: str, allow_partial_matches: bool = True) -> Node:
         text = _SmartText(raw_text)
-        matches = tuple(self._parse_all(text))
+        matches = tuple(self._parse_all(text, allow_partial_matches))
         if not matches:
             raise NoMatches
         elif len(matches) > 1:
+            for m in matches:
+                print(m.draw())
             raise TooManyMatches(matches)
         else:
             return matches[0]
 
-    def _parse_all(self, text: _SmartText) -> typing.Iterable[Node]:
+    def _parse_all(
+        self,
+        text: _SmartText,
+        allow_partial_matches: bool
+    ) -> typing.Iterable[Node]:
         root = self.get_rule(self.root_rule)
         matches = root.match(text, self)
-        for _, node in matches:
-            yield node
+        for leftover, node in matches:
+            if allow_partial_matches or not leftover:
+                yield node
 
     def equals(self, other: 'Language') -> Validity:
         if self.root_rule != other.root_rule:
@@ -352,7 +400,10 @@ class RuleReference(Term):
         text: _SmartText,
         lang: 'Language'
     ) -> typing.Iterable[MatchResult]:
-        return lang.get_rule(self.rule_name).match(text, lang)
+        matches = lang.get_rule(self.rule_name).match(text, lang)
+        for match in matches:
+            lang.log_match(match[0], 'rule ref', self.rule_name)
+            yield match
 
     def equals(self, other: Term) -> Validity:
         if not isinstance(other, RuleReference):
@@ -370,13 +421,14 @@ class RuleReference(Term):
     def validate(self, lang: 'Language') -> Validity:
         if self.rule_name not in lang.rules:
             return Validity.invalid(
-                'rule reference points to a rule that does not exist'
+                'rule reference points to a rule that does not exist: {0!r}'
+                .format(self.rule_name)
             )
         else:
             return Validity.valid()
 
     def get_transform_type(self, lt: 'LanguageTransformation') -> type:
-        rules = lt.transformation_rules  # type: ignore
+        rules = lt.transformation_rules
         return get_return_type(
             rules[self.rule_name].tf_syntax.tf_term_groups[0].accumulator
         )
@@ -384,16 +436,17 @@ class RuleReference(Term):
 
 class Literal(Term):
     """Term that represents a plaintext literal"""
-    def __init__(self, text: str) -> None:
+    def __init__(self, text: str, case_sensitive: bool = True) -> None:
         self.text = text
+        self.case_sensitive = case_sensitive
 
     def match(
         self,
         text: _SmartText,
         lang: Language
     ) -> typing.Iterable[MatchResult]:
-        if text.startswith(self.text):
-            lang.log_match(text)
+        if text.startswith(self.text, self.case_sensitive):
+            lang.log_match(text, 'literal', self.text)
             yield text[len(self.text):], LiteralNode(self.text)
 
     def __repr__(self) -> str:
@@ -427,7 +480,7 @@ class LiteralRange(Term):
         if text:
             first_char = text[0]
             if self.min_value <= ord(first_char) <= self.max_value:
-                lang.log_match(text)
+                lang.log_match(text, 'range', self.min_value, self.max_value)
                 yield text[1:], LiteralNode(first_char)
 
     def __repr__(self) -> str:
@@ -470,6 +523,7 @@ class EOFTerm(Term):
         lang: 'Language'
     ) -> typing.Iterable[MatchResult]:
         if not text:
+            lang.log_match(text, 'EOF')
             yield text, LiteralNode('')
 
     def __repr__(self) -> str:
@@ -517,15 +571,13 @@ class RepeatTerm(Term):
             []
         )
         if match:
-            matches = [match]
-        else:
-            matches = []
+            yield match
         for func in more_funcs:
             match, even_more_funcs = func()
             if match:
-                matches.append(match)
+                lang.log_match(match[0], 'repeat', len(match[1].children))
+                yield match
             more_funcs += even_more_funcs
-        return matches
 
     def _match_impl(
         self,
@@ -533,14 +585,14 @@ class RepeatTerm(Term):
         lang: Language,
         matched_terms: typing.Sequence[Node]
     ) -> typing.Tuple[
-        typing.Optional[MatchResult],
+        typing.Optional[typing.Tuple[_SmartText, MultiNode]],
         typing.Iterable[typing.Callable[[], typing.Any]]
     ]:
         if self.max_count is not None and len(matched_terms) > self.max_count:
             return None, []
         if len(matched_terms) >= self.min_count:
-            match: typing.Optional[MatchResult] = (
-                text, RepeatNode(matched_terms)
+            match: typing.Optional[typing.Tuple[_SmartText, MultiNode]] = (
+                text, MultiNode(matched_terms)
             )
         else:
             match = None
@@ -599,3 +651,133 @@ class RepeatTerm(Term):
 
     def get_transform_type(self, lt: 'LanguageTransformation') -> type:
         return typing.Sequence[self.child.get_transform_type(lt)]  # type: ignore
+
+
+class GroupTerm(Term):
+    def __init__(
+        self,
+        children_groups: typing.Sequence[typing.Sequence[Term]]
+    ) -> None:
+        self.children_groups = children_groups
+
+    def __repr__(self) -> str:
+        return '<GroupTerm(Term) {0}>'.format(
+            ','.join(
+                '({0})'.format(
+                    ','.join(repr(c) for c in children)
+                ) for children in self.children_groups
+            )
+        )
+
+    def equals(self, other: object) -> Validity:
+        if not isinstance(other, GroupTerm):
+            return Validity.invalid(
+                'GroupTerm: other is not a GroupTerm'
+            )
+        elif len(self.children_groups) != len(other.children_groups):
+            return Validity.invalid(
+                'GroupTerm: this term has {0} children_groups and other has {1} '
+                'children_groups'.format(
+                    len(self.children_groups), len(other.children_groups)
+                )
+            )
+        validity = Validity.valid()
+        for index, (a, b) in enumerate(
+            zip(self.children_groups, other.children_groups)
+        ):
+            if len(a) != len(b):
+                validity += Validity.invalid(
+                    'GroupTerm: children_groups {0} are not the same length'
+                    .format(index)
+                )
+            else:
+                validity += sum(
+                    (c.equals(o) for c, o in zip(a, b)),
+                    Validity.valid()
+                )
+        return validity
+
+    def match(
+        self,
+        text: _SmartText,
+        lang: Language
+    ) -> typing.Iterable[MatchResult]:
+        for index, children in enumerate(self.children_groups):
+            for leftover, match in _group_match(children, text, lang):
+                yield leftover, MultiNode(match, index)
+
+    def validate(self, lang: Language) -> Validity:
+        # TODO: validate if the grouping term is necessary, but requires extra context
+        if len(self.children_groups) <= 1 and len(self.children_groups[0]) <= 1:
+            return Validity.invalid(
+                'GroupTerm: must have at least two children'
+            )
+        children = [
+            c.validate(lang)
+            for children in self.children_groups
+            for c in children
+        ]
+        if all(children):
+            return Validity.valid()
+        else:
+            msg_groups = [
+                list(c.messages) + [
+                    'GroupTerm[{0}]: invalid child'.format(index)
+                ]
+                for index, c in enumerate(children) if not c
+            ]
+            return (
+                Validity(
+                    [msg for group in msg_groups for msg in group]
+                ) + Validity.invalid('GroupTerm: children are not valid')
+            )
+
+    def get_transform_type(self, lt: 'LanguageTransformation') -> type:
+        return typing.Tuple[int, typing.Union[tuple(
+            typing.Tuple[tuple(
+                c.get_transform_type(lt) for c in children
+            )] for children in self.children_groups
+        )]]
+
+
+def _group_match(
+    children: typing.Sequence[Term],
+    text: _SmartText,
+    lang: Language
+) -> typing.Iterable[typing.Tuple[_SmartText, typing.Sequence[Node]]]:
+    funcs: typing.List[typing.Callable[[], typing.Any]] = [
+        partial(_group_match_impl, children, text, lang, [])
+    ]
+    for f in funcs:
+        result: typing.Union[
+            typing.Tuple[_SmartText, typing.Sequence[Node]],
+            typing.List[typing.Callable[[], typing.Any]]
+        ] = f()
+        if isinstance(result, tuple):
+            yield result
+        else:
+            funcs += result
+
+
+def _group_match_impl(
+    children: typing.Sequence[Term],
+    text: _SmartText,
+    lang: Language,
+    matched_terms: typing.Sequence[Node]
+) -> typing.Union[
+    typing.Tuple[_SmartText, typing.Sequence[Node]],
+    typing.List[typing.Callable[[], typing.Any]]
+]:
+    if len(matched_terms) == len(children):
+        return text, matched_terms
+    else:
+        target = children[len(matched_terms)]
+        return [
+            partial(
+                _group_match_impl,
+                children,
+                leftover,
+                lang,
+                list(matched_terms) + [node]
+            ) for leftover, node in target.match(text, lang)
+        ]

@@ -9,7 +9,7 @@ test_requirements = [
 
 setup(
     name='prosodia',
-    version='0.2.6',
+    version='0.3.0',
     author='macbeth322',
     author_email='chrisp533@gmail.com',
     package_dir={'': 'src'},
@@ -18,8 +18,10 @@ setup(
         'typing'
     ],
     setup_requires=['pytest-runner'],
-    tests_require=['pytest'],
-    extras_require=dict(test=test_requirements),
+    tests_require=test_requirements,
+    extras_require={
+        'test': test_requirements
+    },
     package_data={
         'prosodia': ['py.typed'],
         '': ['*.grammar']

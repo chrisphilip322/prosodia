@@ -1,12 +1,9 @@
 import typing
 
-from ...core import grammar as g, transform as t
-from ...validation.transform_validation import annotate
-from .parser import ALLOWED_SYMBOLS
+from ....core import grammar as g, transform as t
+from ....validation.transform_validation import annotate
 
 if typing.TYPE_CHECKING:
-    # TypeVars should be referenced using forward references 'T' vs T so the lib
-    # can do its magic
     T = typing.TypeVar('T')
     T2 = typing.TypeVar('T2')
     Addable = typing.TypeVar('Addable', str, list)
@@ -92,7 +89,7 @@ def text_accum_2(
     return g.Literal(values[0] + values[1].text)
 
 
-def base_term_accum_rule(
+def term_accum_rule(
     values: typing.Tuple[str, g.RuleName, str]
 ) -> g.Term:
     return g.RuleReference(values[1])
@@ -111,37 +108,6 @@ def literal_range_accum2(
     first = int(values[1])
     second = int(values[3])
     return g.LiteralRange(first, second)
-
-
-def repeat_term_accum(
-    values: typing.Tuple[
-        g.Term,
-        str,
-        typing.Tuple[int, typing.Optional[int]],
-        str
-    ]
-) -> g.Term:
-    return g.RepeatTerm(values[0], values[2][0], values[2][1])
-
-
-def repeat_body_accum1(
-    values: typing.Tuple[str]
-) -> typing.Tuple[int, typing.Optional[int]]:
-    num = int(values[0])
-    return (num, num)
-
-
-def repeat_body_accum2(
-    values: typing.Tuple[str, str]
-) -> typing.Tuple[int, typing.Optional[int]]:
-    num = int(values[0])
-    return (num, None)
-
-
-def repeat_body_accum3(
-    values: typing.Tuple[str, str, str]
-) -> typing.Tuple[int, typing.Optional[int]]:
-    return (int(values[0]), int(values[2]))
 
 
 def list_of(
@@ -188,110 +154,100 @@ def add(
     return accum
 
 
-lt = t.LanguageTransformation.create()
-lt <<= 'Syntax', [syntax_accum]
-lt <<= 'Rules', [
+transform = t.LanguageTransformation.create('Syntax', [syntax_accum])
+transform <<= 'Rules', [
     annotate(list_of, T=g.Rule),
     annotate(push_list, T=g.Rule)
 ]
-lt <<= 'Rule', [rule_accum]
-lt <<= 'OptWhitespace', [
+transform <<= 'Rule', [rule_accum]
+transform <<= 'OptWhitespace', [
     annotate(nothing2, T=str, T2=None),
     annotate(nothing, T=str)
 ]
-lt <<= 'Expression', [
+transform <<= 'Expression', [
     annotate(list_of, T=g.TermGroup),
     expression_accum
 ]
-lt <<= 'LineEnd', [
+transform <<= 'LineEnd', [
     annotate(nothing, T=None),
     annotate(nothing2, T=None, T2=None),
 ]
-lt <<= 'SingleLineEnd', [
+transform <<= 'SingleLineEnd', [
     annotate(nothing2, T=None, T2=None)
 ]
-lt <<= 'List', [
+transform <<= 'List', [
     list_accum_1,
     list_accum_2
 ]
-lt <<= 'BaseTerm', [
+transform <<= 'Term', [
     annotate(identity2, T=g.Literal, T2=g.Term),
-    base_term_accum_rule,
+    term_accum_rule,
     annotate(identity2, T=g.LiteralRange, T2=g.Term),
 ]
-lt <<= 'Literal', [
+transform <<= 'Literal', [
     annotate(unescape, T=g.Literal),
     annotate(unescape, T=g.Literal),
 ]
-lt <<= 'Text1', [
+transform <<= 'Text1', [
     text_accum_1,
     text_accum_2,
 ]
-lt <<= 'Text2', [
+transform <<= 'Text2', [
     text_accum_1,
     text_accum_2,
 ]
-lt <<= 'Character', [
+transform <<= 'Character', [
     annotate(identity, T=str)
 ] * 3
-lt <<= 'Letter', [
-    annotate(identity, T=str)
-] * 26 * 2
-lt <<= 'Digit', [
+transform <<= 'Letter', [
     annotate(identity, T=str)
 ] * 2
-lt <<= 'NonZeroDigit', [
+transform <<= 'Digit', [
     annotate(identity, T=str)
-] * 9
-lt <<= 'Symbol', [
+] * 2
+transform <<= 'NonZeroDigit', [
     annotate(identity, T=str)
-] * len(ALLOWED_SYMBOLS)
-lt <<= 'Character1', [
+] * 1
+transform <<= 'Symbol', [
+    annotate(identity, T=str)
+] * 6
+transform <<= 'Character1', [
     annotate(identity, T=str),
     annotate(identity, T=str)
 ]
-lt <<= 'Character2', [
+transform <<= 'Character2', [
     annotate(identity, T=str),
     annotate(identity, T=str)
 ]
-lt <<= 'RuleName', [
+transform <<= 'RuleName', [
     annotate(identity, T=str),
     annotate(add, Addable=str)
 ]
-lt <<= 'RuleEnd', [
+transform <<= 'RuleEnd', [
     annotate(identity, T=str),
     annotate(add, Addable=str)
 ]
-lt <<= 'OneRuleEnd', [
+transform <<= 'OneRuleEnd', [
     annotate(identity, T=str),
     annotate(identity, T=str),
     annotate(add, Addable=str),
     annotate(add, Addable=str)
 ]
-lt <<= 'EOL', [
+transform <<= 'EOL', [
     annotate(nothing, T=str)
 ]
-lt <<= 'EOF', [
+transform <<= 'EOF', [
     annotate(nothing, T=str)
 ]
-lt <<= 'LiteralRange', [
+transform <<= 'LiteralRange', [
     literal_range_accum1,
     literal_range_accum2,
 ]
-lt <<= 'Number', [
+transform <<= 'Number', [
     annotate(identity, T=str),
     annotate(add, Addable=str)
 ]
-lt <<= 'Digits', [
+transform <<= 'Digits', [
     annotate(identity, T=str),
     annotate(add, Addable=str)
-]
-lt <<= 'Term', [
-    annotate(identity, T=g.Term),
-    repeat_term_accum
-]
-lt <<= 'RepeatBody', [
-    repeat_body_accum1,
-    repeat_body_accum2,
-    repeat_body_accum3,
 ]

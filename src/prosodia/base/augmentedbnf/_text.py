@@ -6,4 +6,4 @@ with open(
         'text.grammar'
     )
 ) as f:
-    bnfrepeattext = f.read()
+    text = f.read()

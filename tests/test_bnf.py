@@ -1,55 +1,44 @@
 import traceback
-import unittest
+from unittest import TestCase, mock
 
-from prosodia.base.bnf.text import bnf
-from prosodia.base.bnf.parser import lang
-from prosodia.base.bnf.transform import lt as transform
+from prosodia.core.grammar import Grammar
+from prosodia.base.bnf import create_bnf
+from prosodia.base.bnf._text import text
 from prosodia.core.transform import TermGroupTransformation
+
+from ._helpers import validate, validate_recursive_grammar
 
 
 def fake_tgt(stacks):
     real_transform = TermGroupTransformation.transform
+
     def wrapped(*args, **kwargs):
-        stacks.append(len(traceback.extract_stack()))
+        stacks.append(traceback.extract_stack())
         return real_transform(*args, **kwargs)
     return wrapped
 
 
-class TestBNF(unittest.TestCase):
-    def _assert_validity(self, validity):
-        for msg in validity.messages:
-            print(msg)
-        self.assertTrue(validity)
-
+class TestBNF(TestCase):
     def test_bnf_parser_works(self):
-        tree = lang.parse(bnf)
-        parsed_lang = transform.transform(tree)
-        self.assertTrue(parsed_lang.equals(lang))
-        tree2 = parsed_lang.parse(bnf)
-        parsed_lang2 = transform.transform(tree2)
-        self.assertTrue(parsed_lang2.equals(lang))
-        self.assertTrue(parsed_lang2.equals(parsed_lang))
-
-        self._assert_validity(lang.validate())
-        self._assert_validity(parsed_lang.validate())
-        self._assert_validity(parsed_lang2.validate())
-
-        self._assert_validity(transform.validate(lang))
-        self._assert_validity(transform.validate(parsed_lang))
-        self._assert_validity(transform.validate(parsed_lang2))
+        validate_recursive_grammar(self, create_bnf(), text)
 
     def test_no_arbitrary_recursion(self):
+        bnf = create_bnf()
         stack = traceback.extract_stack()
         stacks = []
-        with unittest.mock.patch(
-            'prosodia.base.bnf.transform.t.TermGroupTransformation.transform',
+        with mock.patch(
+            'prosodia.base.bnf._transform.t.TermGroupTransformation.transform',
             new=fake_tgt(stacks)
         ):
-            tree = lang.parse(bnf)
-            parsed_lang = transform.transform(tree)
-            self._assert_validity(parsed_lang.equals(lang))
-            tree2 = parsed_lang.parse(bnf)
-            parsed_lang2 = transform.transform(tree2)
-            self._assert_validity(parsed_lang2.equals(lang))
-            self._assert_validity(parsed_lang2.equals(parsed_lang))
-        self.assertTrue(max(stacks) < len(stack) + 5)
+            parsed_lang = bnf.apply(text)
+            parsed_grammar = Grammar(parsed_lang, bnf.transform)
+            parsed_lang2 = parsed_grammar.apply(text)
+
+            validate(self, parsed_lang.equals(bnf.language))
+            validate(self, parsed_lang2.equals(bnf.language))
+            validate(self, parsed_lang2.equals(parsed_lang))
+
+        largest = max(stacks, key=len)
+        # 5 is kind of an arbitrary number and the minimum that makes this test
+        # pass, it should just be low
+        self.assertTrue(len(largest) <= len(stack) + 5)

@@ -16,20 +16,37 @@ from ..validation.transform_validation import (
 
 InputType = typing.TypeVar('InputType')
 OutputType = typing.TypeVar('OutputType')
+T = typing.TypeVar('T')
 
 
-class LanguageTransformation(object):
+class LanguageTransformation(typing.Generic[T]):
     def __init__(
         self,
         transformation_rules: typing.Dict[
             RuleName, 'RuleTransformation[typing.Any]'
-        ]
+        ],
+        unused_root_rule: 'RuleTransformation[T]'
     ) -> None:
         self.transformation_rules = transformation_rules
 
     @classmethod
-    def create(cls) -> 'LanguageTransformation':
-        return cls(dict())
+    def create(
+        cls,
+        rule_name: RuleName,
+        root_accums: typing.Sequence[typing.Callable[..., T]]
+    ) -> 'LanguageTransformation[T]':
+        rt: RuleTransformation[T] = RuleTransformation(
+            rule_name,
+            SyntaxTransformation(
+                tuple(
+                    TermGroupTransformation(t) for t in typing.cast(
+                        typing.Sequence[typing.Callable[..., Resolvable[T]]],
+                        root_accums
+                    )
+                )
+            )
+        )
+        return cls({rule_name: rt}, rt)
 
     def add_rule_transformation(
         self,
@@ -45,7 +62,7 @@ class LanguageTransformation(object):
         self,
         info: typing.Tuple[
             RuleName,
-            typing.Sequence[typing.Callable[[typing.Any], typing.Any]]
+            typing.Sequence[typing.Callable[..., typing.Any]]
         ]
     ) -> 'LanguageTransformation':
         rule_name, transforms = info
@@ -204,8 +221,9 @@ class TermGroupTransformation(typing.Generic[OutputType]):
             term.get_transform_type(lt)
             for term in term_group.terms
         ]
-        if not check_composability(transform_types, self.accumulator):
-            return Validity.invalid(
+        is_composable = check_composability(transform_types, self.accumulator)
+        if not is_composable:
+            return is_composable + Validity.invalid(
                 'rule references in the term group are not composable: ' +
                 ' '.join(repr(t) for t in term_group.terms)
             )
