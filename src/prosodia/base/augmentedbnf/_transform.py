@@ -2,6 +2,7 @@ import typing
 
 from ...core import grammar as g, transform as t
 from ...validation.transform_validation import annotate
+from ...validation import group_types as gt
 
 from ._transform_helpers import (
     nothing, nothing2, nothing3, identity, identity2, add, unescape)
@@ -172,12 +173,9 @@ def _repeat_term_accum2(
 def _string_literal_accum(
     values: typing.Tuple[
         typing.Sequence[
-            typing.Tuple[
-                int,
-                typing.Union[
-                    typing.Tuple[str],
-                    typing.Tuple[str]
-                ]
+            gt.Group2[
+                typing.Tuple[str],
+                typing.Tuple[str]
             ]
         ],
         typing.Sequence[str]
@@ -185,10 +183,10 @@ def _string_literal_accum(
 ) -> g.Literal:
     value = ''.join(values[1])
     if values[0]:
-        sensitivity = values[0][1][0]
-        if sensitivity == "%s":
+        a, b = values[0][0]
+        if not isinstance(a, gt.NoValue) and a == "%s":
             return g.Literal(value, True)
-        elif sensitivity == "%i":
+        elif not isinstance(a, gt.NoValue) and b == "%i":
             return g.Literal(value, False)
         else:
             raise RuntimeError('unreachable')
@@ -295,10 +293,7 @@ transform <<= 'Comment', [
         nothing2,
         T=str,
         T2=typing.Sequence[
-            typing.Tuple[
-                int,
-                typing.Union[typing.Tuple[str], typing.Tuple[str]]
-            ]
+            gt.Group2[typing.Tuple[str], typing.Tuple[str]]
         ]
     )
 ]

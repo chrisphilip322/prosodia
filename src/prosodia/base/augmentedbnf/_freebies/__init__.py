@@ -1,8 +1,9 @@
-from typing import Sequence, Tuple, Union
+from typing import Sequence, Tuple
 
-from prosodia.core.grammar import Grammar, Language
+from prosodia.core.grammar import Language
 from prosodia.core.transform import LanguageTransformation
 from prosodia.validation.transform_validation import annotate
+from prosodia.validation.group_types import Group2, NoValue
 
 from .._transform_helpers import add, identity
 
@@ -39,19 +40,17 @@ def add_freebie_transforms(
 
 def lwsp_accum(
     values: Tuple[Sequence[
-        Tuple[
-            int,
-            Union[
-                Tuple[str],
-                Tuple[str, str]
-            ]
+        Group2[
+            Tuple[str],
+            Tuple[str, str]
         ]
     ]]
 ) -> str:
-    return sum(
-        (
-            sum(item[1], '')
-            for item in values[0]
-        ),
-        ''
-    )
+    total = ''
+    for i in values[0]:
+        cand1, cand2 = i
+        if not isinstance(cand1, NoValue):
+            total += cand1[0]
+        elif not isinstance(cand2, NoValue):
+            total += cand2[0] + cand2[1]
+    return total

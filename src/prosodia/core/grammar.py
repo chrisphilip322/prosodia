@@ -4,6 +4,7 @@ import typing
 
 from .tree import Node, LiteralNode, RuleNode, MultiNode
 from ..validation.validity import Validity
+from ..validation import group_types as gt
 from ..validation.transform_validation import get_return_type
 if typing.TYPE_CHECKING:
     from .transform import LanguageTransformation  # pylint: disable=unused-import
@@ -349,8 +350,8 @@ class TermGroup(object):
                 'term group needs at least one term'
             )
         elif (
-            len(self.terms) > 1 and
-            any(t.equals(Literal('')) for t in self.terms)
+            len(self.terms) > 1
+            and any(t.equals(Literal('')) for t in self.terms)
         ):
             return Validity.invalid(
                 'shouldnt have an empty literal in a term group with more than '
@@ -495,8 +496,8 @@ class LiteralRange(Term):
                 'LiteralRange: other is not a literal range'
             )
         elif (
-            self.min_value != other.min_value or
-            self.max_value != other.max_value
+            self.min_value != other.min_value
+            or self.max_value != other.max_value
         ):
             return Validity.invalid('LiteralRange: range values are different')
         else:
@@ -611,8 +612,8 @@ class RepeatTerm(Term):
         if not isinstance(other, RepeatTerm):
             return Validity.invalid('RepeatTerm: other is not a RepeatTerm')
         elif (
-            self.min_count != other.min_count or
-            self.max_count != other.max_count
+            self.min_count != other.min_count
+            or self.max_count != other.max_count
         ):
             return Validity.invalid(
                 'RepeatTerm: other does not have same range'
@@ -627,8 +628,8 @@ class RepeatTerm(Term):
 
     def validate(self, lang: Language) -> Validity:
         if (
-            self.max_count is not None and
-            self.max_count < self.min_count
+            self.max_count is not None
+            and self.max_count < self.min_count
         ):
             return Validity.invalid(
                 'RepeatTerm: max count is less than min count'
@@ -732,12 +733,51 @@ class GroupTerm(Term):
                 ) + Validity.invalid('GroupTerm: children are not valid')
             )
 
-    def get_transform_type(self, lt: 'LanguageTransformation') -> type:
-        return typing.Tuple[int, typing.Union[tuple(
+    def get_transform_type(self, lt: 'LanguageTransformation') -> type:  # pylint: disable=too-many-return-statements,too-many-branches
+        child_types = tuple(
             typing.Tuple[tuple(
                 c.get_transform_type(lt) for c in children
             )] for children in self.children_groups
-        )]]
+        )
+        # c0, c1, c2, c3, c4, c5, c6, c7, c8, c9, c10, c11, c12, c13, c14, c15 = \
+        #     itertools.islice(
+        #         itertools.chain(child_types_gen, itertools.repeat(None))
+        #         16
+        #     )
+        if len(self.children_groups) == 1:
+            return gt.Group[child_types]  # type: ignore
+        elif len(self.children_groups) == 2:
+            return gt.Group2[child_types]  # type: ignore
+        elif len(self.children_groups) == 3:
+            return gt.Group3[child_types]  # type: ignore
+        elif len(self.children_groups) == 4:
+            return gt.Group4[child_types]  # type: ignore
+        elif len(self.children_groups) == 5:
+            return gt.Group5[child_types]  # type: ignore
+        elif len(self.children_groups) == 6:
+            return gt.Group6[child_types]  # type: ignore
+        elif len(self.children_groups) == 7:
+            return gt.Group7[child_types]  # type: ignore
+        elif len(self.children_groups) == 8:
+            return gt.Group8[child_types]  # type: ignore
+        elif len(self.children_groups) == 9:
+            return gt.Group9[child_types]  # type: ignore
+        elif len(self.children_groups) == 10:
+            return gt.Group10[child_types]  # type: ignore
+        elif len(self.children_groups) == 11:
+            return gt.Group11[child_types]  # type: ignore
+        elif len(self.children_groups) == 12:
+            return gt.Group12[child_types]  # type: ignore
+        elif len(self.children_groups) == 13:
+            return gt.Group13[child_types]  # type: ignore
+        elif len(self.children_groups) == 14:
+            return gt.Group14[child_types]  # type: ignore
+        elif len(self.children_groups) == 15:
+            return gt.Group15[child_types]  # type: ignore
+        elif len(self.children_groups) == 16:
+            return gt.Group16[child_types]  # type: ignore
+        else:
+            raise ValueError('cant have more than 16 child groups')
 
 
 def _group_match(
