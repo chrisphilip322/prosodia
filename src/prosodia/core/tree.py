@@ -3,6 +3,7 @@ import re
 import typing
 
 from .resolvable import resolve_map, ResolvablePair, ResolvableFunc, Resolvable
+from ..validation import group_types as gt
 
 if typing.TYPE_CHECKING:
     from .transform import LanguageTransformation  # pylint: disable=unused-import
@@ -77,17 +78,19 @@ class MultiNode(Node):
     def __init__(
         self,
         children: typing.Sequence[Node],
-        group_index: typing.Optional[int] = None
+        group_info: typing.Optional[typing.Tuple[int, int]] = None,
     ) -> None:
         self.children = children
-        self.group_index = group_index
+        self.group_info = group_info
+        # group_info[0] index of the group that matched
+        # group_info[1] total number of groups
 
     def transform(self, lang: 'LanguageTransformation') -> typing.Any:
         resolvable_result = resolve_map(
             self.children,
             lambda c: c.transform(lang)
         )
-        if self.group_index is None:
+        if self.group_info is None:
             return resolvable_result
         else:
             return self._make_group_result(
@@ -119,7 +122,12 @@ class MultiNode(Node):
     def _make_group_result(self, resolvable: Resolvable) -> Resolvable:
         def func(result: typing.Any) -> Resolvable:
             def nested() -> typing.Any:
-                return (self.group_index, result)
+                if self.group_info:
+                    output = [gt.NoValue.Sentinel] * self.group_info[1]
+                    output[self.group_info[0]] = result
+                    return output
+                else:
+                    raise RuntimeError
 
             return ResolvableFunc(nested)
 

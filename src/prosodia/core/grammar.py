@@ -705,7 +705,7 @@ class GroupTerm(Term):
     ) -> typing.Iterable[MatchResult]:
         for index, children in enumerate(self.children_groups):
             for leftover, match in _group_match(children, text, lang):
-                yield leftover, MultiNode(match, index)
+                yield leftover, MultiNode(match, (index, len(self.children_groups)))
 
     def validate(self, lang: Language) -> Validity:
         # TODO: validate if the grouping term is necessary, but requires extra context
