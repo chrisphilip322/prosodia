@@ -1,8 +1,9 @@
 import typing
+from typing import Tuple
 
 from ...core import grammar as g, transform as t
 from ...validation.transform_validation import annotate
-from ...validation import group_types as gt
+from ...validation import group_types as gt, switches as sw
 
 from ._transform_helpers import (
     nothing, nothing2, nothing3, identity, identity2, add, unescape)
@@ -170,6 +171,18 @@ def _repeat_term_accum2(
     return g.RepeatTerm(values[1], 0, 1)
 
 
+class _StringLiteralSwitch(sw.Switch2[Tuple[str], Tuple[str], bool]):
+    @staticmethod
+    def case0(val: Tuple[str]) -> bool:
+        assert val[0] == '%s'
+        return True
+
+    @staticmethod
+    def case1(val: Tuple[str]) -> bool:
+        assert val[0] == '%i'
+        return False
+
+
 def _string_literal_accum(
     values: typing.Tuple[
         typing.Sequence[
@@ -182,16 +195,10 @@ def _string_literal_accum(
     ]
 ) -> g.Literal:
     value = ''.join(values[1])
+    case_sensitive = False
     if values[0]:
-        a, b = values[0][0]
-        if not isinstance(a, gt.NoValue) and a == "%s":
-            return g.Literal(value, True)
-        elif not isinstance(a, gt.NoValue) and b == "%i":
-            return g.Literal(value, False)
-        else:
-            raise RuntimeError('unreachable')
-    else:
-        return g.Literal(value, False)
+        case_sensitive = _StringLiteralSwitch()(values[0][0])
+    return g.Literal(value, case_sensitive)
 
 
 def _string_literal_accum2(
