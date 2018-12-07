@@ -1,5 +1,3 @@
-# pylint: disable=line-too-long
-
 from enum import Enum
 from typing import TypeVar, Union, Tuple
 
@@ -35,12 +33,24 @@ Group4 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3]]
 Group5 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4]]
 Group6 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5]]
 Group7 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6]]
-Group8 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6], UNV[T7]]
-Group9 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6], UNV[T7], UNV[T8]]
-Group10 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6], UNV[T7], UNV[T8], UNV[T9]]
-Group11 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6], UNV[T7], UNV[T8], UNV[T9], UNV[T10]]
-Group12 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6], UNV[T7], UNV[T8], UNV[T9], UNV[T10], UNV[T11]]
-Group13 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6], UNV[T7], UNV[T8], UNV[T9], UNV[T10], UNV[T11], UNV[T12]]
-Group14 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6], UNV[T7], UNV[T8], UNV[T9], UNV[T10], UNV[T11], UNV[T12], UNV[T13]]
-Group15 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6], UNV[T7], UNV[T8], UNV[T9], UNV[T10], UNV[T11], UNV[T12], UNV[T13], UNV[T14]]
-Group16 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6], UNV[T7], UNV[T8], UNV[T9], UNV[T10], UNV[T11], UNV[T12], UNV[T13], UNV[T14], UNV[T15]]
+Group8 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6],
+               UNV[T7]]
+Group9 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6],
+               UNV[T7], UNV[T8]]
+Group10 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6],
+                UNV[T7], UNV[T8], UNV[T9]]
+Group11 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6],
+                UNV[T7], UNV[T8], UNV[T9], UNV[T10]]
+Group12 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6],
+                UNV[T7], UNV[T8], UNV[T9], UNV[T10], UNV[T11]]
+Group13 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6],
+                UNV[T7], UNV[T8], UNV[T9], UNV[T10], UNV[T11], UNV[T12]]
+Group14 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6],
+                UNV[T7], UNV[T8], UNV[T9], UNV[T10], UNV[T11], UNV[T12],
+                UNV[T13]]
+Group15 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6],
+                UNV[T7], UNV[T8], UNV[T9], UNV[T10], UNV[T11], UNV[T12],
+                UNV[T13], UNV[T14]]
+Group16 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3], UNV[T4], UNV[T5], UNV[T6],
+                UNV[T7], UNV[T8], UNV[T9], UNV[T10], UNV[T11], UNV[T12],
+                UNV[T13], UNV[T14], UNV[T15]]
