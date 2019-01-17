@@ -13,6 +13,8 @@ RuleName = str
 MatchResult = typing.Tuple['_SmartText', Node]
 T = typing.TypeVar('T')
 
+_cache = {}
+
 
 class Grammar(typing.Generic[T]):
     def __init__(
@@ -90,6 +92,17 @@ class _SmartText(object):
         else:
             raise TypeError('expecting an int or a slice')
 
+    def __hash__(self) -> int:
+        return hash((self._raw_text, self._start, self._end))
+
+    def __eq__(self, other: object) -> bool:
+        return (
+            type(self) is type(other)
+            and self._raw_text == other._raw_text
+            and self._start == other._start
+            and self._end == other._end
+        )
+
 
 class NoMatches(Exception):
     pass
@@ -144,6 +157,8 @@ class Language(object):
         )
 
     def parse(self, raw_text: str, allow_partial_matches: bool = True) -> Node:
+        global _cache
+        _cache = {}
         text = _SmartText(raw_text)
         matches = tuple(self._parse_all(text, allow_partial_matches))
         if not matches:
@@ -401,8 +416,16 @@ class RuleReference(Term):
         text: _SmartText,
         lang: 'Language'
     ) -> typing.Iterable[MatchResult]:
+        key = id(self), text
+        if key in _cache:
+            # print('cache hit!', _cache_stats[0] / _cache_stats[1])
+            yield from iter(_cache[key])
+            return
+        results = []
+        _cache[key] = results
         matches = lang.get_rule(self.rule_name).match(text, lang)
         for match in matches:
+            results.append(match)
             lang.log_match(match[0], 'rule ref', self.rule_name)
             yield match
 

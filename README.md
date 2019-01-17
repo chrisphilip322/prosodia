@@ -1,5 +1,6 @@
 # prosodia
 [![Build Status](https://travis-ci.org/macbeth322/prosodia.svg?branch=master)](https://travis-ci.org/macbeth322/prosodia)
+
 `prosodia` is a library to parse arbitrary grammars and then apply a
 deterministic transformation.
 
