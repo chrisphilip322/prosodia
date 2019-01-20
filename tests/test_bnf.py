@@ -9,23 +9,23 @@ from prosodia.core.transform import TermGroupTransformation
 from ._helpers import validate, validate_recursive_grammar
 
 
-def fake_tgt(stacks):
+def fake_tgt(stacks):  # type: ignore
     real_transform = TermGroupTransformation.transform
 
-    def wrapped(*args, **kwargs):
+    def wrapped(*args, **kwargs):  # type: ignore
         stacks.append(traceback.extract_stack())
         return real_transform(*args, **kwargs)
     return wrapped
 
 
 class TestBNF(TestCase):
-    def test_bnf_parser_works(self):
+    def test_bnf_parser_works(self) -> None:
         validate_recursive_grammar(self, create_bnf(), text)
 
-    def test_no_arbitrary_recursion(self):
+    def test_no_arbitrary_recursion(self) -> None:
         bnf = create_bnf()
         stack = traceback.extract_stack()
-        stacks = []
+        stacks = []  # type: ignore
         with mock.patch(
             'prosodia.base.bnf._transform.t.TermGroupTransformation.transform',
             new=fake_tgt(stacks)

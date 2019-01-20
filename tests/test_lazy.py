@@ -5,7 +5,7 @@ from prosodia.core.transform import LazySequenceTransform
 
 
 class TestLazySequenceTransform(unittest.TestCase):
-    def test_lazy_get(self):
+    def test_lazy_get(self) -> None:
         m = mock.Mock()
         mock_lang = mock.Mock()
         lst = LazySequenceTransform.create(
@@ -27,7 +27,7 @@ class TestLazySequenceTransform(unittest.TestCase):
             [mock.call.a.transform(mock_lang)]
         )
 
-    def test_lazy_iter(self):
+    def test_lazy_iter(self) -> None:
         m = mock.Mock()
         mock_lang = mock.Mock()
         lst = LazySequenceTransform.create(

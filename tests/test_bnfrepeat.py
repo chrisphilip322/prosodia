@@ -9,10 +9,10 @@ from ._helpers import validate_recursive_grammar
 
 
 class TestBNFRepeat(unittest.TestCase):
-    def test_bnf_range_parser_works(self):
+    def test_bnf_range_parser_works(self) -> None:
         validate_recursive_grammar(self, create_bnfrepeat(), text)
 
-    def test_bnf_range_example_parser_works(self):
+    def test_bnf_range_example_parser_works(self) -> None:
         validate_recursive_grammar(
             self,
             create_example_bnfrepeat(),
