@@ -11,11 +11,11 @@ from ._helpers import validate_recursive_grammar, validate
 
 
 class TestAugmentedBNF(unittest.TestCase):
-    def test_augmentedbnf_parser_works(self):
+    def test_augmentedbnf_parser_works(self) -> None:
         abnf = create_augmentedbnf()
         validate_recursive_grammar(self, abnf, text)
 
-    def test_intermediate_augmented_bnf(self):
+    def test_intermediate_augmented_bnf(self) -> None:
         inter_abnf = create_intermediate_augmentedbnf()
         validate(self, inter_abnf.validate())
 

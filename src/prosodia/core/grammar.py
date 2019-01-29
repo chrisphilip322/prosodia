@@ -11,6 +11,10 @@ if typing.TYPE_CHECKING:
 
 RuleName = str
 MatchResult = typing.Tuple['_SmartText', Node]
+RuleReferenceCache = typing.MutableMapping[
+    typing.Tuple[int, '_SmartText', int],
+    typing.Sequence[MatchResult]
+]
 T = typing.TypeVar('T')
 
 
@@ -90,6 +94,20 @@ class _SmartText(object):
         else:
             raise TypeError('expecting an int or a slice')
 
+    def _as_tuple(self) -> typing.Tuple[object, ...]:
+        return (self._raw_text, self._start, self._end)
+
+    def __hash__(self) -> int:
+        return hash(self._as_tuple())
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, _SmartText):
+            return NotImplemented
+        return (
+            type(self) is type(other)
+            and self._as_tuple() == other._as_tuple()
+        )
+
 
 class NoMatches(Exception):
     pass
@@ -145,7 +163,7 @@ class Language(object):
 
     def parse(self, raw_text: str, allow_partial_matches: bool = True) -> Node:
         text = _SmartText(raw_text)
-        matches = tuple(self._parse_all(text, allow_partial_matches))
+        matches = tuple(self._parse_all(text, allow_partial_matches, {}))
         if not matches:
             raise NoMatches
         elif len(matches) > 1:
@@ -158,10 +176,11 @@ class Language(object):
     def _parse_all(
         self,
         text: _SmartText,
-        allow_partial_matches: bool
+        allow_partial_matches: bool,
+        cache: RuleReferenceCache,
     ) -> typing.Iterable[Node]:
         root = self.get_rule(self.root_rule)
-        matches = root.match(text, self)
+        matches = root.match(text, self, cache)
         for leftover, node in matches:
             if allow_partial_matches or not leftover:
                 yield node
@@ -213,9 +232,10 @@ class Rule(object):
     def match(
         self,
         text: _SmartText,
-        lang: 'Language'
+        lang: 'Language',
+        cache: RuleReferenceCache,
     ) -> typing.Iterable[MatchResult]:
-        return self.syntax.match(text, self.name, lang)
+        return self.syntax.match(text, self.name, lang, cache)
 
     def equals(self, other: 'Rule') -> Validity:
         if self.name != other.name:
@@ -247,10 +267,11 @@ class Syntax(object):
         self,
         text: _SmartText,
         rule_name: 'RuleName',
-        lang: 'Language'
+        lang: 'Language',
+        cache: RuleReferenceCache,
     ) -> typing.Iterable[MatchResult]:
         for index, term_list in enumerate(self.term_groups):
-            for leftover, terms in term_list.match(text, lang):
+            for leftover, terms in term_list.match(text, lang, cache):
                 node = RuleNode(rule_name, index, terms)
                 yield leftover, node
 
@@ -302,28 +323,31 @@ class TermGroup(object):
         self,
         text: _SmartText,
         term_index: int,
-        lang: 'Language'
+        lang: 'Language',
+        cache: RuleReferenceCache,
     ) -> typing.Iterable[typing.Tuple[_SmartText, typing.Sequence[Node]]]:
         term = self.terms[term_index]
         next_term_index = term_index + 1
         is_last_term = next_term_index >= len(self.terms)
-        for leftover, match in term.match(text, lang):
+        for leftover, match in term.match(text, lang, cache):
             if is_last_term:
                 yield leftover, (match,)
             else:
                 for final_leftover, child_matches in self._match_impl(
                     leftover,
                     next_term_index,
-                    lang
+                    lang,
+                    cache,
                 ):
                     yield final_leftover, (match,) + tuple(child_matches)
 
     def match(
         self,
         text: _SmartText,
-        lang: 'Language'
+        lang: 'Language',
+        cache: RuleReferenceCache,
     ) -> typing.Iterable[typing.Tuple[_SmartText, typing.Sequence[Node]]]:
-        return self._match_impl(text, 0, lang)
+        return self._match_impl(text, 0, lang, cache)
 
     def equals(self, other: 'TermGroup') -> Validity:
         if len(self.terms) != len(other.terms):
@@ -374,7 +398,8 @@ class Term(object, metaclass=abc.ABCMeta):
     def match(
         self,
         text: _SmartText,
-        lang: 'Language'
+        lang: 'Language',
+        cache: RuleReferenceCache,
     ) -> typing.Iterable[MatchResult]:
         raise NotImplementedError
 
@@ -399,12 +424,31 @@ class RuleReference(Term):
     def match(
         self,
         text: _SmartText,
-        lang: 'Language'
+        lang: 'Language',
+        cache: RuleReferenceCache,
     ) -> typing.Iterable[MatchResult]:
-        matches = lang.get_rule(self.rule_name).match(text, lang)
+        key = id(self), text, id(lang)
+        if key in cache:
+            yield from iter(cache[key])
+            return
+        results: typing.List[MatchResult] = []
+        cache[key] = results
+        matches = lang.get_rule(self.rule_name).match(text, lang, cache)
+        actual_match = False
         for match in matches:
+            results.append(match)
             lang.log_match(match[0], 'rule ref', self.rule_name)
-            yield match
+            if not actual_match:
+                if match[0] != text:
+                    # Since matching only moves forwards, as long as we match
+                    # any part of the text then we know that we will finish
+                    # exhausting this iterable before we hit this cache entry
+                    actual_match = True
+                    yield from results
+            else:
+                yield match
+        if not actual_match and results:
+            yield from results
 
     def equals(self, other: Term) -> Validity:
         if not isinstance(other, RuleReference):
@@ -444,7 +488,8 @@ class Literal(Term):
     def match(
         self,
         text: _SmartText,
-        lang: Language
+        lang: Language,
+        cache: RuleReferenceCache,
     ) -> typing.Iterable[MatchResult]:
         if text.startswith(self.text, self.case_sensitive):
             lang.log_match(text, 'literal', self.text)
@@ -476,7 +521,8 @@ class LiteralRange(Term):
     def match(
         self,
         text: _SmartText,
-        lang: Language
+        lang: Language,
+        cache: RuleReferenceCache,
     ) -> typing.Iterable[MatchResult]:
         if text:
             first_char = text[0]
@@ -521,7 +567,8 @@ class EOFTerm(Term):
     def match(
         self,
         text: _SmartText,
-        lang: 'Language'
+        lang: 'Language',
+        cache: RuleReferenceCache,
     ) -> typing.Iterable[MatchResult]:
         if not text:
             lang.log_match(text, 'EOF')
@@ -564,12 +611,14 @@ class RepeatTerm(Term):
     def match(
         self,
         text: _SmartText,
-        lang: Language
+        lang: Language,
+        cache: RuleReferenceCache,
     ) -> typing.Iterable[MatchResult]:
         match, more_funcs = self._match_impl(
             text,
             lang,
-            []
+            [],
+            cache,
         )
         if match:
             yield match
@@ -584,7 +633,8 @@ class RepeatTerm(Term):
         self,
         text: _SmartText,
         lang: Language,
-        matched_terms: typing.Sequence[Node]
+        matched_terms: typing.Sequence[Node],
+        cache: RuleReferenceCache,
     ) -> typing.Tuple[
         typing.Optional[typing.Tuple[_SmartText, MultiNode]],
         typing.Iterable[typing.Callable[[], typing.Any]]
@@ -603,8 +653,9 @@ class RepeatTerm(Term):
                 self._match_impl,
                 leftover_text,
                 lang,
-                list(matched_terms) + [term]
-            ) for leftover_text, term in self.child.match(text, lang)
+                list(matched_terms) + [term],
+                cache,
+            ) for leftover_text, term in self.child.match(text, lang, cache)
         ]
         return match, more_funcs
 
@@ -701,10 +752,11 @@ class GroupTerm(Term):
     def match(
         self,
         text: _SmartText,
-        lang: Language
+        lang: Language,
+        cache: RuleReferenceCache,
     ) -> typing.Iterable[MatchResult]:
         for index, children in enumerate(self.children_groups):
-            for leftover, match in _group_match(children, text, lang):
+            for leftover, match in _group_match(children, text, lang, cache):
                 yield leftover, MultiNode(match, (index, len(self.children_groups)))
 
     def validate(self, lang: Language) -> Validity:
@@ -783,10 +835,11 @@ class GroupTerm(Term):
 def _group_match(
     children: typing.Sequence[Term],
     text: _SmartText,
-    lang: Language
+    lang: Language,
+    cache: RuleReferenceCache,
 ) -> typing.Iterable[typing.Tuple[_SmartText, typing.Sequence[Node]]]:
     funcs: typing.List[typing.Callable[[], typing.Any]] = [
-        partial(_group_match_impl, children, text, lang, [])
+        partial(_group_match_impl, children, text, lang, [], cache)
     ]
     for f in funcs:
         result: typing.Union[
@@ -803,7 +856,8 @@ def _group_match_impl(
     children: typing.Sequence[Term],
     text: _SmartText,
     lang: Language,
-    matched_terms: typing.Sequence[Node]
+    matched_terms: typing.Sequence[Node],
+    cache: RuleReferenceCache,
 ) -> typing.Union[
     typing.Tuple[_SmartText, typing.Sequence[Node]],
     typing.List[typing.Callable[[], typing.Any]]
@@ -818,6 +872,7 @@ def _group_match_impl(
                 children,
                 leftover,
                 lang,
-                list(matched_terms) + [node]
-            ) for leftover, node in target.match(text, lang)
+                list(matched_terms) + [node],
+                cache,
+            ) for leftover, node in target.match(text, lang, cache)
         ]

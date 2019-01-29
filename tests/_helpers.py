@@ -1,13 +1,13 @@
 from prosodia.core.grammar import Grammar
 
 
-def validate(test_case, validity):
+def validate(test_case, validity):  # type: ignore
     for msg in validity.messages:
         print(msg)
     test_case.assertTrue(validity)
 
 
-def validate_recursive_grammar(test_case, grammar, text):
+def validate_recursive_grammar(test_case, grammar, text):  # type: ignore
     validate(test_case, grammar.validate())
 
     parsed_lang = grammar.apply(text)
