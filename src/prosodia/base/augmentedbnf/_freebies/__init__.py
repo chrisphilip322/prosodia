@@ -22,6 +22,9 @@ def add_freebie_rules(lang: Language) -> Language:
 def add_freebie_transforms(
     lt: LanguageTransformation
 ) -> LanguageTransformation:
+    lt <<= 'ALPHA', [annotate(identity, T=str)] * 2
+    lt <<= 'BIT', [annotate(identity, T=str)] * 2
+    lt <<= 'CHAR', [annotate(identity, T=str)]
     lt <<= 'CR', [annotate(identity, T=str)]
     lt <<= 'CRLF', [annotate(add, Addable=str)]
     lt <<= 'CTL', [annotate(identity, T=str)] * 2
