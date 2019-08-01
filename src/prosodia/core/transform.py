@@ -231,7 +231,7 @@ class TermGroupTransformation(typing.Generic[OutputType]):
             return Validity.valid()
 
 
-class LazySequenceTransform(typing.Sequence):
+class LazySequenceTransform(typing.Sequence[typing.Any]):
     def __init__(
         self,
         initial_values: typing.Sequence[Node],

@@ -26,7 +26,7 @@ class NoValue(Enum):
 
 UNV = Union[NoValue, T0]
 
-Group = Tuple[UNV[T0]]
+Group = Tuple[T0]
 Group2 = Tuple[UNV[T0], UNV[T1]]
 Group3 = Tuple[UNV[T0], UNV[T1], UNV[T2]]
 Group4 = Tuple[UNV[T0], UNV[T1], UNV[T2], UNV[T3]]

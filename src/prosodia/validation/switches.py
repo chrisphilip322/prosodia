@@ -14,10 +14,7 @@ class Switch(Generic[gt.T0, OutputType], metaclass=abc.ABCMeta):
 
     def __call__(self, group: gt.Group[gt.T0]) -> OutputType:
         (a,) = group
-        if not isinstance(a, gt.NoValue):
-            return self.case0(a)
-        else:
-            raise ValueError
+        return self.case0(a)
 
 
 class Switch2(
